@@ -1,0 +1,5 @@
+# Azure Voice Live API dependencies
+azure-ai-voicelive[aiohttp]==1.1.0
+azure-identity==1.25.1
+python-dotenv==1.2.1
+PyAudio==0.2.14
