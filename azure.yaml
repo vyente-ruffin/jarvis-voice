@@ -1,0 +1,9 @@
+name: jarvis-voice
+metadata:
+  template: azd-init
+
+services:
+  api:
+    project: .
+    host: containerapp
+    language: python

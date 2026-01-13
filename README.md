@@ -1,366 +1,251 @@
-# Azure Voice Live API - Real-time Voice Chat
+# Jarvis Voice Assistant
 
-A Python implementation of Azure Voice Live API for real-time voice conversations with GPT-4 models, featuring natural barge-in (interruption) support.
+A web-based real-time voice assistant using Azure Voice Live API, deployed to Azure Container Apps.
 
-## Overview
-
-This project uses **Azure Voice Live API** (not the standard OpenAI Realtime API) because it provides:
-
-- **Built-in barge-in support** - Instantly stops AI audio when user speaks
-- **Echo cancellation** - Prevents feedback loops from speakers to microphone
-- **Deep noise suppression** - Filters background noise for cleaner speech detection
-- **Enhanced VAD** - Server-side Voice Activity Detection for better turn-taking
+**Live URL:** https://jarvis-api.orangemushroom-8f6b80a4.eastus2.azurecontainerapps.io
 
 ## Architecture
 
 ```
-┌─────────────┐     WebSocket      ┌──────────────────────┐
-│   PyAudio   │◄──────────────────►│  Azure Voice Live    │
-│  (Mic/Spk)  │   PCM16 24kHz      │  API (eastus2)       │
-└─────────────┘                    │                      │
-                                   │  ┌────────────────┐  │
-                                   │  │ GPT-4 Realtime │  │
-                                   │  │    Model       │  │
-                                   │  └────────────────┘  │
-                                   │                      │
-                                   │  ┌────────────────┐  │
-                                   │  │ Echo Cancel +  │  │
-                                   │  │ Noise Suppress │  │
-                                   │  └────────────────┘  │
-                                   └──────────────────────┘
+Browser (any device)           Azure Container Apps            Azure Voice Live API
+┌──────────────────────┐      ┌─────────────────────┐         ┌──────────────────┐
+│  Web Audio API       │      │  FastAPI Server     │         │  GPT-4 Realtime  │
+│  - getUserMedia      │ WSS  │  - /ws/voice        │   WSS   │  - TTS/STT       │
+│  - AudioContext      │◄────►│  - /health          │◄───────►│  - Echo cancel   │
+│  - 48kHz → 24kHz     │ JSON │  - Static files     │  PCM16  │  - Noise supprs  │
+│    resampling        │      │                     │         │  - Server VAD    │
+└──────────────────────┘      └─────────────────────┘         └──────────────────┘
+     PCM16 base64                  Relay + encode                 Raw PCM16
 ```
 
 ## Azure Resources
 
-### Required Resource
+### Resource Group: `rg-jarvis` (eastus2)
+
+| Resource | Type | Name | Purpose |
+|----------|------|------|---------|
+| Container Registry | Microsoft.ContainerRegistry | `jarvisacrvhtdfumtik3ey` | Docker images |
+| Log Analytics | Microsoft.OperationalInsights | `jarvis-law-*` | Logging |
+| Container Apps Environment | Microsoft.App/managedEnvironments | `jarvis-cae-*` | Hosts container |
+| Container App | Microsoft.App/containerApps | `jarvis-api` | The web app |
+
+### External Resource (pre-existing)
 
 | Resource | Type | Location | Purpose |
 |----------|------|----------|---------|
-| `voicelive-service` | Azure AI Services (multi-service) | eastus2 | Hosts Voice Live API |
+| `voicelive-service` | Azure AI Services | eastus2 | Voice Live API endpoint |
 
-### Resource Group
+## Project Structure
 
-- **Name**: `rg-voicelive`
-- **Location**: `eastus2`
-
-### How Resources Were Created
-
-```bash
-# Create resource group
-az group create --name rg-voicelive --location eastus2
-
-# Create AI Services resource (multi-service, not just OpenAI)
-az cognitiveservices account create \
-  --name voicelive-service \
-  --resource-group rg-voicelive \
-  --location eastus2 \
-  --kind AIServices \
-  --sku S0 \
-  --yes
-
-# Get endpoint
-az cognitiveservices account show \
-  --name voicelive-service \
-  --resource-group rg-voicelive \
-  --query "properties.endpoint" -o tsv
-
-# Get API key
-az cognitiveservices account keys list \
-  --name voicelive-service \
-  --resource-group rg-voicelive \
-  --query "key1" -o tsv
+```
+├── src/
+│   ├── __init__.py
+│   ├── server.py          # FastAPI WebSocket server
+│   ├── voice_live.py      # Voice Live SDK wrapper
+│   └── static/
+│       ├── index.html     # JARVIS UI
+│       ├── styles.css     # CRT/hexagonal styling
+│       └── app.js         # Audio capture/playback
+├── tests/
+│   ├── test_server.py     # Server unit tests
+│   └── test_voice_live.py # Voice Live unit tests
+├── infra/
+│   └── main.bicep         # Azure infrastructure
+├── Dockerfile
+├── azure.yaml             # Azure Developer CLI config
+├── requirements.txt
+└── voice-live-chat.py     # Local CLI version (alternative)
 ```
 
-**Important**: Voice Live uses `AIServices` kind (multi-service), not `OpenAI` kind. The models are fully managed - no deployment needed.
+## WebSocket Protocol
 
-## Installation
+For LLMs integrating this into larger applications:
+
+### Client → Server
+
+```json
+{"type": "audio", "data": "<base64 PCM16 24kHz mono>"}
+{"type": "mute", "muted": true|false}
+```
+
+### Server → Client
+
+```json
+{"type": "connected"}
+{"type": "status", "state": "ready|listening|processing"}
+{"type": "audio", "data": "<base64 PCM16 24kHz mono>"}
+{"type": "transcript", "text": "..."}
+{"type": "clear_audio"}  // Barge-in signal - stop playback
+{"type": "mute_status", "muted": true|false}
+{"type": "error", "message": "..."}
+```
+
+### Audio Format
+
+- **Sample rate:** 24000 Hz
+- **Channels:** 1 (mono)
+- **Format:** PCM16 (signed 16-bit little-endian)
+- **Encoding:** Base64 for JSON transport
+
+## Deployment
 
 ### Prerequisites
 
-- Python 3.10+
-- macOS/Linux (PyAudio works best on these platforms)
+- Azure CLI (`az`)
+- Docker with buildx
 - Azure subscription with AI Services resource
 
-### Setup
-
-#### macOS
+### Deploy from Scratch
 
 ```bash
-# Install portaudio (required for PyAudio)
-brew install portaudio
+# 1. Create resource group
+az group create --name rg-jarvis --location eastus2
 
-# Create virtual environment
+# 2. Deploy infrastructure
+az deployment group create \
+  --resource-group rg-jarvis \
+  --template-file infra/main.bicep \
+  --parameters voiceLiveEndpoint="https://eastus2.api.cognitive.microsoft.com/" \
+               voiceLiveApiKey="YOUR_API_KEY"
+
+# 3. Get ACR name from output
+ACR_NAME=$(az acr list -g rg-jarvis --query "[0].name" -o tsv)
+
+# 4. Build and push Docker image
+az acr login --name $ACR_NAME
+docker buildx build --platform linux/amd64 \
+  -t $ACR_NAME.azurecr.io/jarvis-api:latest --push .
+
+# 5. Update container app with image
+az containerapp update --name jarvis-api --resource-group rg-jarvis \
+  --image $ACR_NAME.azurecr.io/jarvis-api:latest
+```
+
+### Update Existing Deployment
+
+```bash
+# Build and push new version
+az acr login --name jarvisacrvhtdfumtik3ey
+docker buildx build --platform linux/amd64 \
+  -t jarvisacrvhtdfumtik3ey.azurecr.io/jarvis-api:v5 --push .
+
+# Update container app
+az containerapp update --name jarvis-api --resource-group rg-jarvis \
+  --image jarvisacrvhtdfumtik3ey.azurecr.io/jarvis-api:v5
+```
+
+### Update Voice Live Credentials
+
+```bash
+az containerapp secret set --name jarvis-api --resource-group rg-jarvis \
+  --secrets "voice-live-endpoint=YOUR_ENDPOINT" \
+            "voice-live-api-key=YOUR_KEY"
+az containerapp revision restart --name jarvis-api --resource-group rg-jarvis \
+  --revision $(az containerapp revision list -n jarvis-api -g rg-jarvis --query "[0].name" -o tsv)
+```
+
+## Local Development
+
+```bash
+# Install dependencies
 python3 -m venv .venv
 source .venv/bin/activate
-
-# Install dependencies
 pip install -r requirements.txt
-```
 
-#### Windows
-
-```powershell
-# Create virtual environment
-python -m venv .venv
-.venv\Scripts\activate
-
-# Install dependencies (PyAudio wheel is included)
-pip install -r requirements.txt
-```
-
-**Note**: If PyAudio fails to install on Windows, download the appropriate wheel from [PyAudio Unofficial Binaries](https://www.lfd.uci.edu/~gohlke/pythonlibs/#pyaudio) and install with `pip install <filename>.whl`
-
-#### Linux (Ubuntu/Debian)
-
-```bash
-# Install portaudio and python dev headers
-sudo apt-get install portaudio19-dev python3-dev
-
-# Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### Dependencies
-
-| Package | Purpose |
-|---------|---------|
-| `azure-ai-voicelive[aiohttp]` | Voice Live SDK with async WebSocket support |
-| `pyaudio` | Audio capture (microphone) and playback (speaker) |
-| `python-dotenv` | Environment variable loading from `.env` file |
-| `azure-identity` | Azure authentication (optional, for token-based auth) |
-
-## Configuration
-
-### Environment Variables
-
-Copy `.env.example` to `.env` and fill in your values:
-
-```bash
+# Configure environment
 cp .env.example .env
+# Edit .env with your Voice Live credentials
+
+# Run server
+uvicorn src.server:app --reload --port 8000
+
+# Run tests
+pytest tests/ -v
 ```
 
-Edit `.env` with your Azure credentials:
+## Environment Variables
 
-```env
-# Required
-AZURE_VOICELIVE_ENDPOINT=https://eastus2.api.cognitive.microsoft.com/
-AZURE_VOICELIVE_API_KEY=your_api_key_here
-
-# Optional (defaults shown)
-AZURE_VOICELIVE_MODEL=gpt-4o-mini-realtime-preview
-AZURE_VOICELIVE_VOICE=en-US-AvaNeural
-AZURE_VOICELIVE_INSTRUCTIONS=You are a helpful voice assistant. Be conversational and concise. Respond naturally.
-```
-
-**Note**: `.env` is gitignored to prevent committing secrets. Only `.env.example` should be committed.
-
-### Available Models
-
-| Model | Description |
-|-------|-------------|
-| `gpt-4o-mini-realtime-preview` | Faster, lower cost |
-| `gpt-4o-realtime-preview` | More capable |
-| `gpt-realtime` | Alias for default realtime model |
-
-### Available Voices
-
-**Azure Neural Voices:**
-- `en-US-AvaNeural`
-- `en-US-GuyNeural`
-- `en-US-JennyNeural`
-
-**OpenAI Voices:**
-- `alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`
-
-## Usage
-
-```bash
-source .venv/bin/activate
-python voice-live-chat.py
-```
-
-### Expected Output
-
-```
-🔌 Connecting to Voice Live API...
-
-==================================================
-🎤 VOICE LIVE ASSISTANT READY
-Start speaking - you can interrupt anytime!
-Press Ctrl+C to exit
-==================================================
-
-✅ Connected: sess_xxx
-🎤 Listening... (you can interrupt!)
-🤔 Processing...
-[AI response transcript appears here]
-🎤 Ready...
-```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `AZURE_VOICE_LIVE_ENDPOINT` | Yes | Voice Live API endpoint |
+| `AZURE_VOICE_LIVE_API_KEY` | Yes | Voice Live API key |
+| `AZURE_VOICE_LIVE_MODEL` | No | Model (default: `gpt-4o-mini-realtime-preview`) |
+| `AZURE_VOICE_LIVE_VOICE` | No | Voice (default: `en-US-AvaNeural`) |
+| `AZURE_VOICE_LIVE_INSTRUCTIONS` | No | System prompt |
 
 ## Key Implementation Details
 
-### Barge-in (Interruption) Handling
+### SDK Audio Format
 
-The key to natural conversation is immediate audio cutoff when the user speaks:
-
-```python
-elif event.type == ServerEventType.INPUT_AUDIO_BUFFER_SPEECH_STARTED:
-    print("🎤 Listening... (you can interrupt!)")
-    ap.skip_pending_audio()  # Immediately clears playback queue
-```
-
-The `skip_pending_audio()` method increments a sequence counter that causes all queued audio packets to be skipped, providing instant interruption.
-
-### Audio Configuration
+The Azure Voice Live SDK documentation states `event.delta` is "base64-encoded" but **returns raw PCM bytes**. You must base64 encode for JSON:
 
 ```python
-# PCM16, 24kHz, mono - required by Voice Live API
-format = pyaudio.paInt16
-channels = 1
-rate = 24000
-chunk_size = 1200  # 50ms chunks
+# Correct
+audio_base64 = base64.b64encode(event.delta).decode('utf-8')
+
+# Wrong - will crash
+audio_base64 = event.delta.decode('utf-8')
 ```
 
-### Session Configuration
+### Browser Audio Resampling
 
-```python
-session_config = RequestSession(
-    modalities=[Modality.TEXT, Modality.AUDIO],
-    instructions="Your system prompt here",
-    voice=AzureStandardVoice(name="en-US-AvaNeural"),
-    input_audio_format=InputAudioFormat.PCM16,
-    output_audio_format=OutputAudioFormat.PCM16,
-    turn_detection=ServerVad(
-        threshold=0.5,
-        prefix_padding_ms=300,
-        silence_duration_ms=500
-    ),
-    # Key features for natural conversation:
-    input_audio_echo_cancellation=AudioEchoCancellation(),
-    input_audio_noise_reduction=AudioNoiseReduction(type="azure_deep_noise_suppression"),
-)
+Browsers capture at 48kHz but Voice Live requires 24kHz:
+
+```javascript
+function resampleTo24kHz(samples, fromRate) {
+  const ratio = fromRate / 24000;
+  const newLength = Math.round(samples.length / ratio);
+  const result = new Float32Array(newLength);
+  for (let i = 0; i < newLength; i++) {
+    const srcIndex = i * ratio;
+    const floor = Math.floor(srcIndex);
+    const ceil = Math.min(floor + 1, samples.length - 1);
+    const t = srcIndex - floor;
+    result[i] = samples[floor] * (1 - t) + samples[ceil] * t;
+  }
+  return result;
+}
 ```
 
-### Event Types
+### Barge-in Handling
 
-| Event | Description |
-|-------|-------------|
-| `SESSION_UPDATED` | Session ready, start audio capture |
-| `INPUT_AUDIO_BUFFER_SPEECH_STARTED` | User started speaking - trigger barge-in |
-| `INPUT_AUDIO_BUFFER_SPEECH_STOPPED` | User stopped speaking |
-| `RESPONSE_CREATED` | AI response started |
-| `RESPONSE_AUDIO_DELTA` | Audio chunk received - queue for playback |
-| `RESPONSE_AUDIO_TRANSCRIPT_DELTA` | Text transcript chunk |
-| `RESPONSE_AUDIO_DONE` | AI finished speaking |
-| `RESPONSE_DONE` | Response complete |
-| `ERROR` | Error occurred |
+When user speaks during AI response, server sends `clear_audio` - client must immediately stop playback:
 
-## Function Calling / Tools
-
-Voice Live supports function calling for integrating external tools:
-
-```python
-from azure.ai.voicelive.models import FunctionTool
-
-tools = [
-    FunctionTool(
-        name="get_weather",
-        description="Get current weather for a location",
-        parameters={
-            "type": "object",
-            "properties": {
-                "location": {
-                    "type": "string",
-                    "description": "City and state or country"
-                }
-            },
-            "required": ["location"]
-        }
-    )
-]
-
-# Add to session config
-session_config = RequestSession(
-    # ... other config ...
-    tools=tools,
-    tool_choice="auto"
-)
-
-# Handle function calls in event loop
-elif event.type == ServerEventType.RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE:
-    # Parse arguments, call your function, return result
-    result = your_function(json.loads(event.arguments))
-    await connection.conversation.item.create(
-        item=FunctionCallOutputItem(
-            call_id=event.call_id,
-            output=json.dumps(result)
-        )
-    )
-    await connection.response.create()
+```javascript
+case 'clear_audio':
+  audioQueue.length = 0;  // Clear pending audio
+  isPlaying = false;
+  break;
 ```
 
-## Comparison: Voice Live vs OpenAI Realtime API
+## Alternative: Local CLI Version
 
-| Feature | OpenAI Realtime API | Azure Voice Live API |
-|---------|---------------------|----------------------|
-| Barge-in | Manual (`response.cancel` + `truncate`) | Built-in (`skip_pending_audio()`) |
-| Echo cancellation | None | `AudioEchoCancellation()` |
-| Noise reduction | None | `azure_deep_noise_suppression` |
-| VAD | Basic `server_vad` | Enhanced server-side VAD |
-| Resource type | `OpenAI` kind | `AIServices` kind (multi-service) |
-| Model deployment | Required | Fully managed |
+For local development without web browser, use `voice-live-chat.py`:
+
+```bash
+# Install PyAudio (macOS)
+brew install portaudio
+pip install pyaudio
+
+# Run
+python voice-live-chat.py
+```
+
+## Monitoring
+
+```bash
+# View logs
+az containerapp logs show --name jarvis-api --resource-group rg-jarvis --tail 100
+
+# Check health
+curl https://jarvis-api.orangemushroom-8f6b80a4.eastus2.azurecontainerapps.io/health
+```
 
 ## Limits
 
-- **Session duration**: 30 minutes maximum
-- **Audio format**: PCM16, 24kHz, mono only
-
-## Documentation Links
-
-### Official Microsoft Documentation
-
-- [Voice Live API Overview](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/voice-live)
-- [Voice Live Quickstart (Python)](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/voice-live-quickstart?pivots=programming-language-python)
-- [Voice Live Function Calling](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/how-to-voice-live-function-calling)
-- [Voice Live with Agents](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/voice-live-agents-quickstart)
-
-### SDK References
-
-- [azure-ai-voicelive PyPI](https://pypi.org/project/azure-ai-voicelive/)
-- [azure-ai-voicelive API Reference](https://learn.microsoft.com/en-us/python/api/overview/azure/ai-voicelive-readme)
-- [GitHub Samples](https://aka.ms/voicelive/github-python)
-
-### Related Documentation
-
-- [Azure AI Services Multi-service Resource](https://learn.microsoft.com/en-us/azure/ai-services/multi-service-resource)
-- [Region Support](https://learn.microsoft.com/en-us/azure/ai-services/speech-service/regions)
-
-## Troubleshooting
-
-### "Missing required parameter: 'session.type'"
-
-This is a benign warning that can be ignored. The session still works.
-
-### No audio output
-
-1. Check speaker volume and default audio device
-2. Ensure PyAudio is using the correct output device
-3. Try running with `--verbose` to see detailed logs
-
-### Session timeout after 30 minutes
-
-This is expected. Create a new session to continue.
-
-### PyAudio installation issues on macOS
-
-```bash
-brew install portaudio
-pip install pyaudio
-```
+- **Session duration:** 30 minutes max (Voice Live limit)
+- **Audio format:** PCM16 24kHz mono only
+- **HTTPS required:** Microphone access requires secure context
 
 ## License
 
