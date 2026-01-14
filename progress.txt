@@ -131,3 +131,16 @@
   - README already had an Environment Variables section, just needed a subsection for memory
   - All 15 server tests still pass
 ---
+
+## Iteration 8 - US-008 Copy and run tests
+- What was implemented: Copied memory test files from parent project and verified all tests pass
+- Files changed:
+  - tests/test_memory_client.py (added - copied from ../tests/)
+  - tests/test_tool_handler.py (added - copied from ../tests/)
+  - tests/test_memory_integration.py (added - copied from ../tests/test_integration.py, renamed to avoid conflict)
+- Learnings for future iterations:
+  - Had to rename test_integration.py to test_memory_integration.py because jarvis-voice already had a test_integration.py for WebSocket tests
+  - All 75 tests discovered, 70 passed, 5 skipped (skipped ones are expected WebSocket integration tests marked skip)
+  - Memory integration tests call real jarvis-cloud API and verify latency < 500ms
+  - Typecheck passes on all 6 memory-related source files
+---

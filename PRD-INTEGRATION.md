@@ -149,12 +149,12 @@ ENABLE_MEMORY=true
 **Description:** As a developer, I need to copy memory tests and verify everything works.
 
 **Acceptance Criteria:**
-- [ ] Copy `../tests/test_memory_client.py` to `./tests/`
-- [ ] Copy `../tests/test_tool_handler.py` to `./tests/`
-- [ ] Copy `../tests/test_integration.py` to `./tests/`
-- [ ] Run all tests: `pytest tests/`
-- [ ] All tests pass
-- [ ] Typecheck passes
+- [x] Copy `../tests/test_memory_client.py` to `./tests/`
+- [x] Copy `../tests/test_tool_handler.py` to `./tests/`
+- [x] Copy `../tests/test_integration.py` to `./tests/`
+- [x] Run all tests: `pytest tests/`
+- [x] All tests pass
+- [x] Typecheck passes
 
 ---
 
