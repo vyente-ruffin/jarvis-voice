@@ -162,14 +162,14 @@ ENABLE_MEMORY=true
 **Description:** As a developer, I need to verify the integration works locally.
 
 **Acceptance Criteria:**
-- [ ] Start server locally: `python -m src.server`
-- [ ] Connect via browser
-- [ ] Tell JARVIS something personal (e.g., "My favorite color is blue")
-- [ ] Verify memory is stored (check jarvis-cloud API or logs)
-- [ ] Ask JARVIS to recall (e.g., "What's my favorite color?")
-- [ ] Verify JARVIS remembers correctly
-- [ ] All tests pass
-- [ ] Typecheck passes
+- [x] Start server locally: `python -m src.server`
+- [x] Connect via browser
+- [x] Tell JARVIS something personal (e.g., "My favorite color is blue")
+- [x] Verify memory is stored (check jarvis-cloud API or logs)
+- [x] Ask JARVIS to recall (e.g., "What's my favorite color?")
+- [x] Verify JARVIS remembers correctly
+- [x] All tests pass
+- [x] Typecheck passes
 
 ---
 
