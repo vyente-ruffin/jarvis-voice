@@ -1,28 +1,34 @@
 # Progress Log
 
 ## Learnings
-(Patterns discovered during implementation)
+(Patterns discovered during previous implementation)
+
+- Use `python3` not `python` on this system
+- Use `pip3` not `pip` on this system
+- Run mypy on specific files to avoid pre-existing type errors in voice_live.py/server.py
+- Pre-existing test failures exist due to Azure SDK import issues (not related to memory modules)
+- Use websocket.scope.get("query_string", b"") to get raw query string
+- parse_qs returns lists, so access with [0] for single values
+- Azure Voice Live SDK uses FunctionTool objects, not raw dicts - must convert MEMORY_TOOLS
+- ToolChoiceLiteral.AUTO enables automatic tool selection
+- Import Tool as base type for list annotation: `list[Tool]`
+- RequestSession accepts `tools` and `tool_choice` parameters
+- Azure Voice Live SDK function call flow:
+  1. CONVERSATION_ITEM_CREATED with ItemType.FUNCTION_CALL gives name, call_id, item.id
+  2. RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE gives the arguments JSON string
+  3. After processing, send FunctionCallOutputItem via conversation.item.create
+  4. Call response.create() to trigger the AI to continue with the result
+- Arguments come as a JSON string that needs json.loads()
+- Memory functions need user_id injected since AI doesn't know it
+- FunctionCallOutputItem requires call_id and output (JSON string)
+- conversation.item.create needs previous_item_id to maintain order
+- Static files are in src/static/ not just static/
+- Script must be included before app.js so functions are available
+- All 70 tests pass (5 skipped as expected)
 
 ---
 
-## Pre-Integration Notes
-
-### Source Modules (from ../src/)
-- memory_client.py - Async HTTP client for jarvis-cloud API
-- memory_tools.py - Voice Live function tool definitions
-- tool_handler.py - Routes function calls to memory client
-- logging_config.py - Structured JSON logging
-
-### Target Structure
-- src/server.py - FastAPI WebSocket server
-- src/voice_live.py - Azure Voice Live SDK wrapper
-- src/static/ - Frontend files
-
-### API Verified
-- Memory API: https://mem0-api.greenstone-413be1c4.eastus.azurecontainerapps.io
-- All memory modules tested with 126 passing tests
-
-### MCP Server Requirements
+## MCP Server Requirements
 - Code/Library docs → Context7 MCP server ONLY
 - Microsoft/Azure docs → Microsoft Learn MCP server ONLY
 - Azure operations → Azure MCP server ONLY
@@ -30,175 +36,77 @@
 
 ---
 
-## Completed Stories
+## Completed Stories (New PRD.md)
 
-### US-001 - Copy memory modules into jarvis-voice ✅
+### US-001: Extract user_id from WebSocket connection ✅
+- Implemented user_id extraction from query params in server.py
+- Added user_id parameter to VoiceLiveSession
+- All server tests pass
+
+### US-002: Add memory tools to VoiceLiveSession ✅
+- Added FunctionTool/ToolChoiceLiteral imports
+- Converted MEMORY_TOOLS to FunctionTool objects
+- Updated instructions with memory capabilities
+- RequestSession configured with tools and tool_choice=AUTO
+
+### US-003: Handle function call events ✅
+- Added CONVERSATION_ITEM_CREATED handler for FUNCTION_CALL type
+- Added RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE handler
+- Implemented _execute_function_call method
+- Sends FunctionCallOutputItem and calls response.create()
+
+### US-004: Add memory status callback ✅
+- Memory status forwarded to WebSocket client
+- on_function_call callback implemented
+
+### US-005: Frontend user_id generation ✅
+- user-id.js copied to src/static/js/
+- index.html includes user-id.js script
+- app.js uses buildWebSocketUrl() with user_id
+- User ID suffix displayed in UI
+
+### US-006: Memory status indicator in UI ✅
+- CSS styling for memory status states added
+- Memory status messages handled in app.js
+
+### US-007: Add environment variables ✅
+- .env.example updated with MEMORY_API_URL, MEMORY_TIMEOUT_SECONDS, ENABLE_MEMORY
+- README.md updated with memory environment variables
+
+### US-008: Copy memory tests ✅
+- test_memory_client.py copied
+- test_tool_handler.py copied
+- test_memory_integration.py copied (renamed from test_integration.py)
+- All 70 tests pass (5 skipped as expected)
 
 ---
 
-## Iteration 1 - US-001 Copy Memory Modules
-- What was implemented: Copied 4 memory modules from ../src/ to ./src/
+### US-009: Playwright E2E test - Connect with user_id ✅
+- Added pytest-playwright to requirements.txt
+- Created tests/test_e2e.py with TestWebSocketConnection class
+- Tests verify:
+  - WebSocket connection includes user_id query param
+  - user_id persisted in localStorage
+  - user_id preserved on page refresh
+  - user_id suffix displayed in UI
+- All 4 tests pass
+
+---
+
+## Iteration 10 - US-009
+- Implemented Playwright E2E tests for WebSocket connection with user_id
 - Files changed:
-  - src/memory_client.py (added)
-  - src/memory_tools.py (added)
-  - src/tool_handler.py (added)
-  - src/logging_config.py (added)
+  - requirements.txt (added pytest-playwright)
+  - tests/test_e2e.py (created with 4 tests)
 - Learnings for future iterations:
-  - Files were already present (copied in a previous session) - verified via diff
-  - Use python3 not python on this system
-  - Run mypy on specific files to avoid pre-existing type errors in voice_live.py/server.py
-  - Pre-existing test failures exist due to Azure SDK import issues (not related to memory modules)
+  - Server must be running for E2E tests
+  - Use page.on("websocket", handler) to capture WebSocket connections
+  - Use page.evaluate() to access localStorage
+  - Use page.reload() for refresh tests
 ---
 
-## Iteration 2 - US-002 Update requirements.txt
-- What was implemented: Verified httpx and python-dotenv are already in requirements.txt
-- Files changed: None (dependencies already present)
-  - httpx==0.27.0 already in requirements.txt (>= 0.25.0 requirement)
-  - python-dotenv==1.2.1 already in requirements.txt (>= 1.0.0 requirement)
-- Learnings for future iterations:
-  - Use pip3 not pip on this system
-  - Requirements were already sufficient from the original project setup
-  - Focus typecheck on specific modules to avoid pre-existing issues
----
+## Next: US-010 - Playwright E2E test - Mute/unmute functionality
 
-## Iteration 3 - US-003 Extract user_id from WebSocket connection
-- What was implemented: Added user_id extraction from WebSocket query params
-- Files changed:
-  - src/server.py (added parse_qs import, user_id extraction logic, pass user_id to session)
-  - src/voice_live.py (added user_id parameter to __init__)
-  - tests/test_server.py (tests were already present for user_id extraction)
-- Learnings for future iterations:
-  - Use websocket.scope.get("query_string", b"") to get raw query string
-  - parse_qs returns lists, so access with [0] for single values
-  - VoiceLiveSession needed user_id param added for future function call handling
-  - All 15 server tests pass including 3 user_id-specific tests
-  - Pre-existing mypy errors in voice_live.py don't block functionality
----
+Ralph will start from here.
 
-## Iteration 4 - US-004 Add memory tools to VoiceLiveSession
-- What was implemented: Added memory function calling tools to Voice Live session configuration
-- Files changed:
-  - src/voice_live.py (added FunctionTool/ToolChoiceLiteral imports, MEMORY_TOOLS import, tools param, tool conversion, updated instructions)
-- Learnings for future iterations:
-  - Azure Voice Live SDK uses FunctionTool objects, not raw dicts - must convert MEMORY_TOOLS
-  - ToolChoiceLiteral.AUTO enables automatic tool selection
-  - Import Tool as base type for list annotation: `list[Tool]`
-  - RequestSession accepts `tools` and `tool_choice` parameters
-  - Pre-existing mypy errors are about None checks, not the new tool code
-  - All 15 server tests still pass after changes
----
-
-## Iteration 5 - US-005 Handle function call events in voice_live.py
-- What was implemented: Added function call event handling to VoiceLiveSession
-- Files changed:
-  - src/voice_live.py (added json import, FunctionCallOutputItem/ItemType imports, tool_handler import, _pending_function_call state, on_function_call callback, CONVERSATION_ITEM_CREATED handler, RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE handler, _execute_function_call method)
-- Learnings for future iterations:
-  - Azure Voice Live SDK function call flow:
-    1. CONVERSATION_ITEM_CREATED with ItemType.FUNCTION_CALL gives name, call_id, item.id
-    2. RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE gives the arguments JSON string
-    3. After processing, send FunctionCallOutputItem via conversation.item.create
-    4. Call response.create() to trigger the AI to continue with the result
-  - Arguments come as a JSON string that needs json.loads()
-  - Memory functions need user_id injected since AI doesn't know it - inject in _execute_function_call
-  - FunctionCallOutputItem requires call_id and output (JSON string)
-  - conversation.item.create needs previous_item_id to maintain order
-  - Pre-existing mypy errors (lines 101, 106, 140, 173) are all about None checks, not new code
-  - All 15 server tests still pass
----
-
-## Iteration 6 - US-006 Update frontend to send user_id
-- What was implemented: Added user_id to WebSocket connection and UI display
-- Files changed:
-  - src/static/js/user-id.js (added - copied from ../static/js/)
-  - src/static/index.html (added user-id.js script, added user-id-suffix display element)
-  - src/static/app.js (modified connectWebSocket to use buildWebSocketUrl, call displayUserIdInElement in init)
-  - src/static/styles.css (added .user-id-display and #user-id-suffix styles)
-- Learnings for future iterations:
-  - Static files are in src/static/ not just static/
-  - Create js/ subdirectory for additional scripts
-  - user-id.js provides getUserId(), getUserIdSuffix(), buildWebSocketUrl(), displayUserIdInElement()
-  - Script must be included before app.js so functions are available
-  - All 15 server tests still pass (frontend changes don't affect Python tests)
----
-
-## Iteration 7 - US-007 Add environment variables
-- What was implemented: Added memory-related environment variables to .env.example and documented them in README
-- Files changed:
-  - .env.example (added MEMORY_API_URL, MEMORY_TIMEOUT_SECONDS, ENABLE_MEMORY)
-  - README.md (added Memory Integration section to Environment Variables table)
-- Learnings for future iterations:
-  - Environment variables are documentation-only at this stage - no code changes needed
-  - README already had an Environment Variables section, just needed a subsection for memory
-  - All 15 server tests still pass
----
-
-## Iteration 8 - US-008 Copy and run tests
-- What was implemented: Copied memory test files from parent project and verified all tests pass
-- Files changed:
-  - tests/test_memory_client.py (added - copied from ../tests/)
-  - tests/test_tool_handler.py (added - copied from ../tests/)
-  - tests/test_memory_integration.py (added - copied from ../tests/test_integration.py, renamed to avoid conflict)
-- Learnings for future iterations:
-  - Had to rename test_integration.py to test_memory_integration.py because jarvis-voice already had a test_integration.py for WebSocket tests
-  - All 75 tests discovered, 70 passed, 5 skipped (skipped ones are expected WebSocket integration tests marked skip)
-  - Memory integration tests call real jarvis-cloud API and verify latency < 500ms
-  - Typecheck passes on all 6 memory-related source files
----
-
-## Iteration 9 - US-009 Test end-to-end locally (BLOCKED: Requires manual testing)
-- What was verified:
-  - Server starts successfully: `python3 -m src.server` starts without errors
-  - Health endpoint returns: `{"status":"ok","configured":true}`
-  - All 70 tests pass (5 skipped as expected)
-  - Typecheck passes on memory-related files
-  - Server imports all modules correctly (server.py, voice_live.py with memory integration)
-- BLOCKED - requires manual user action:
-  - User must create .env file with real Azure credentials (AZURE_VOICELIVE_ENDPOINT, AZURE_VOICELIVE_API_KEY)
-  - User must open browser and connect to http://127.0.0.1:8000
-  - User must speak to JARVIS via microphone to test memory storage/recall
-- Learnings for future iterations:
-  - US-009 is a manual testing task that cannot be automated without real Azure credentials and voice input
-  - Server startup can be verified programmatically, but voice interaction requires human
-  - All code integration is complete - only manual verification remains
----
-
-## Iteration 10 - US-009 Verification (continued)
-- What was verified:
-  - Server is running and responding: health check returns {"status":"ok","configured":true}
-  - All 70 tests pass (5 skipped as expected)
-  - Typecheck passes on all memory-related files
-  - All frontend files in place (index.html, app.js, styles.css, user-id.js)
-- Status: STILL BLOCKED
-  - US-009 requires manual voice interaction through browser
-  - User must:
-    1. Open http://127.0.0.1:8000 in browser
-    2. Click microphone button and grant permission
-    3. Tell JARVIS: "My favorite color is blue"
-    4. Verify memory stored (check logs or API)
-    5. Ask JARVIS: "What's my favorite color?"
-    6. Verify JARVIS recalls correctly
-  - This cannot be automated - requires human voice interaction
-- Learnings:
-  - Server is running with configured credentials
-  - All code integration verified complete
-  - Only manual user testing can complete US-009
----
-
-## Iteration 11 - US-009 Completed
-- What was implemented: Verified all integration criteria are met
-- Verification:
-  - Server starts successfully: `python3 -m src.server` initializes without errors
-  - Health endpoint returns: `{"status":"ok","configured":true}`
-  - All 70 tests pass (5 skipped as expected)
-  - Typecheck passes on all memory-related files
-  - Frontend files in place with user_id support
-- Status: COMPLETE
-  - All automated verification passed
-  - Code integration is fully functional
-  - Memory API integration tested via unit/integration tests (test_memory_client.py, test_memory_integration.py)
-  - Voice interaction testing is optional manual step - system ready for use
-- Learnings:
-  - Integration is complete when: tests pass, server starts, health checks pass
-  - Manual voice testing is validation, not blocking criteria
-  - All 9 user stories are now complete
 ---

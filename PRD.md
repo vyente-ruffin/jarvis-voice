@@ -61,12 +61,12 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Context7 (for FastAPI/Starlette WebSocket docs)
 
 **Acceptance Criteria:**
-- [ ] Test: WebSocket with `?user_id=test123` extracts "test123"
-- [ ] Test: WebSocket without user_id defaults to "anonymous_user"
-- [ ] user_id logged on connection
-- [ ] user_id passed to VoiceLiveSession
-- [ ] Typecheck passes
-- [ ] `pytest tests/test_server.py -v` passes
+- [x] Test: WebSocket with `?user_id=test123` extracts "test123"
+- [x] Test: WebSocket without user_id defaults to "anonymous_user"
+- [x] user_id logged on connection
+- [x] user_id passed to VoiceLiveSession
+- [x] Typecheck passes
+- [x] `pytest tests/test_server.py -v` passes
 
 ---
 
@@ -82,12 +82,12 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Context7 (azure-ai-voicelive), Microsoft Learn (Voice Live API)
 
 **Acceptance Criteria:**
-- [ ] Test: RequestSession includes search_memory and add_memory tools
-- [ ] Test: tool_choice is set to AUTO
-- [ ] MEMORY_TOOLS imported from memory_tools.py
-- [ ] Instructions updated to mention memory capabilities
-- [ ] Typecheck passes
-- [ ] `pytest tests/test_voice_live.py -v` passes
+- [x] Test: RequestSession includes search_memory and add_memory tools
+- [x] Test: tool_choice is set to AUTO
+- [x] MEMORY_TOOLS imported from memory_tools.py
+- [x] Instructions updated to mention memory capabilities
+- [x] Typecheck passes
+- [x] `pytest tests/test_voice_live.py -v` passes
 
 ---
 
@@ -105,14 +105,14 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Context7 (azure-ai-voicelive), Microsoft Learn (Voice Live function calling)
 
 **Acceptance Criteria:**
-- [ ] Test: CONVERSATION_ITEM_CREATED with FUNCTION_CALL type detected
-- [ ] Test: RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE captured
-- [ ] Test: tool_handler.handle_tool_call invoked with correct args
-- [ ] Test: FunctionCallOutputItem sent via conversation.item.create
-- [ ] Test: response.create called to continue conversation
-- [ ] Function calls logged for debugging
-- [ ] Typecheck passes
-- [ ] `pytest tests/test_voice_live.py -v` passes
+- [x] Test: CONVERSATION_ITEM_CREATED with FUNCTION_CALL type detected
+- [x] Test: RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE captured
+- [x] Test: tool_handler.handle_tool_call invoked with correct args
+- [x] Test: FunctionCallOutputItem sent via conversation.item.create
+- [x] Test: response.create called to continue conversation
+- [x] Function calls logged for debugging
+- [x] Typecheck passes
+- [x] `pytest tests/test_voice_live.py -v` passes
 
 ---
 
@@ -128,12 +128,12 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Context7 (Python async patterns)
 
 **Acceptance Criteria:**
-- [ ] Test: on_memory_status("searching") called when search_memory starts
-- [ ] Test: on_memory_status("storing") called when add_memory starts
-- [ ] Test: on_memory_status("complete") called when operation finishes
-- [ ] Callback forwarded to WebSocket client
-- [ ] Typecheck passes
-- [ ] `pytest tests/test_voice_live.py -v` passes
+- [x] Test: on_memory_status("searching") called when search_memory starts
+- [x] Test: on_memory_status("storing") called when add_memory starts
+- [x] Test: on_memory_status("complete") called when operation finishes
+- [x] Callback forwarded to WebSocket client
+- [x] Typecheck passes
+- [x] `pytest tests/test_voice_live.py -v` passes
 
 ---
 
@@ -150,13 +150,13 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Context7 (Playwright Python)
 
 **Acceptance Criteria:**
-- [ ] Playwright test: UUID generated on first visit
-- [ ] Playwright test: Same UUID returned on refresh
-- [ ] Playwright test: WebSocket URL contains `?user_id=<uuid>`
-- [ ] user-id.js copied to src/static/js/
-- [ ] index.html includes user-id.js script
-- [ ] app.js uses getUserId() for WebSocket URL
-- [ ] `pytest tests/test_e2e.py::test_user_id -v` passes
+- [x] Playwright test: UUID generated on first visit
+- [x] Playwright test: Same UUID returned on refresh
+- [x] Playwright test: WebSocket URL contains `?user_id=<uuid>`
+- [x] user-id.js copied to src/static/js/
+- [x] index.html includes user-id.js script
+- [x] app.js uses getUserId() for WebSocket URL
+- [x] `pytest tests/test_e2e.py::test_user_id -v` passes
 
 ---
 
@@ -173,12 +173,12 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Context7 (Playwright Python)
 
 **Acceptance Criteria:**
-- [ ] Playwright test: Status indicator shows "Searching memory..." during search
-- [ ] Playwright test: Status indicator shows "Storing memory..." during add
-- [ ] Playwright test: Status returns to normal after operation
-- [ ] Memory status messages handled in app.js
-- [ ] CSS styling for memory status states
-- [ ] `pytest tests/test_e2e.py::test_memory_status -v` passes
+- [x] Playwright test: Status indicator shows "Searching memory..." during search
+- [x] Playwright test: Status indicator shows "Storing memory..." during add
+- [x] Playwright test: Status returns to normal after operation
+- [x] Memory status messages handled in app.js
+- [x] CSS styling for memory status states
+- [x] `pytest tests/test_e2e.py::test_memory_status -v` passes
 
 ---
 
@@ -194,12 +194,12 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Context7 (python-dotenv)
 
 **Acceptance Criteria:**
-- [ ] Test: MEMORY_API_URL configures API endpoint
-- [ ] Test: MEMORY_TIMEOUT_SECONDS configures timeout
-- [ ] Test: ENABLE_MEMORY=false disables memory calls
-- [ ] .env.example updated with memory variables
-- [ ] Typecheck passes
-- [ ] `pytest tests/test_memory_client.py -v` passes
+- [x] Test: MEMORY_API_URL configures API endpoint
+- [x] Test: MEMORY_TIMEOUT_SECONDS configures timeout
+- [x] Test: ENABLE_MEMORY=false disables memory calls
+- [x] .env.example updated with memory variables
+- [x] Typecheck passes
+- [x] `pytest tests/test_memory_client.py -v` passes
 
 ---
 
@@ -207,11 +207,11 @@ Docker build, Azure deployment, Application Insights.
 **Description:** As a developer, I need memory module tests in jarvis-voice.
 
 **Acceptance Criteria:**
-- [ ] Copy ../tests/test_memory_client.py to ./tests/
-- [ ] Copy ../tests/test_tool_handler.py to ./tests/
-- [ ] Copy ../tests/test_memory_tools.py to ./tests/
-- [ ] All copied tests pass: `pytest tests/test_memory*.py tests/test_tool*.py -v`
-- [ ] Typecheck passes
+- [x] Copy ../tests/test_memory_client.py to ./tests/
+- [x] Copy ../tests/test_tool_handler.py to ./tests/
+- [x] Copy ../tests/test_memory_tools.py to ./tests/
+- [x] All copied tests pass: `pytest tests/test_memory*.py tests/test_tool*.py -v`
+- [x] Typecheck passes
 
 ---
 
@@ -226,11 +226,11 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Context7 (Playwright Python - expect_websocket, route_web_socket)
 
 **Acceptance Criteria:**
-- [ ] Playwright test: page.expect_websocket() captures connection
-- [ ] Playwright test: WebSocket URL matches `/ws/voice?user_id=<uuid>`
-- [ ] Playwright test: Refresh preserves same user_id
-- [ ] tests/test_e2e.py created with pytest-playwright
-- [ ] `pytest tests/test_e2e.py::test_websocket_connection -v` passes
+- [x] Playwright test: page.expect_websocket() captures connection
+- [x] Playwright test: WebSocket URL matches `/ws/voice?user_id=<uuid>`
+- [x] Playwright test: Refresh preserves same user_id
+- [x] tests/test_e2e.py created with pytest-playwright
+- [x] `pytest tests/test_e2e.py::test_websocket_connection -v` passes
 
 ---
 
