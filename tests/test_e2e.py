@@ -370,3 +370,163 @@ class TestReconnection:
             "Both URLs should have valid user_id"
         assert initial_user_id_match.group(1) == reconnect_user_id_match.group(1), \
             f"user_id should match: {initial_user_id_match.group(1)} vs {reconnect_user_id_match.group(1)}"
+
+
+class TestErrorHandling:
+    """Tests for error handling behavior (US-012)."""
+
+    def test_server_error_message_handled(self, page: Page):
+        """Test that server error messages are handled gracefully.
+
+        Verifies:
+        - App receives error message from server without crashing
+        - Error is logged to console
+        - App continues to function after error
+        """
+        console_errors = []
+
+        def handle_console(msg):
+            if msg.type == "error":
+                console_errors.append(msg.text)
+
+        page.on("console", handle_console)
+
+        ws_instance = None
+
+        def capture_websocket(ws):
+            nonlocal ws_instance
+            ws_instance = ws
+
+        page.on("websocket", capture_websocket)
+
+        # Navigate and wait for connection
+        page.goto(BASE_URL)
+        page.wait_for_timeout(1000)
+
+        # Verify initial connection
+        status_text = page.locator("#status-text")
+        expect(status_text).to_have_text("Online")
+
+        # Inject a server error message via JavaScript
+        # This simulates what happens when the server sends {type: 'error', message: '...'}
+        page.evaluate("""
+            // Trigger the message handler with an error message
+            const errorEvent = new MessageEvent('message', {
+                data: JSON.stringify({type: 'error', message: 'Test server error'})
+            });
+            ws.dispatchEvent(errorEvent);
+        """)
+
+        # Wait for error to be processed
+        page.wait_for_timeout(500)
+
+        # Check that error was logged to console
+        assert any("Test server error" in err for err in console_errors), \
+            f"Server error should be logged to console. Console errors: {console_errors}"
+
+        # App should still be functional - status should still show Online
+        expect(status_text).to_have_text("Online")
+
+        # UI should still be responsive - mute button should work
+        mute_button = page.locator("#mute-button")
+        mute_button.click()
+        expect(mute_button).to_have_class(re.compile(r'\bmuted\b'))
+
+    def test_invalid_json_does_not_crash_app(self, page: Page):
+        """Test that invalid JSON messages don't crash the application.
+
+        Verifies:
+        - Receiving invalid JSON doesn't throw unhandled exception
+        - App continues to function after receiving invalid JSON
+        - Error is logged but doesn't break the connection
+        """
+        console_errors = []
+
+        def handle_console(msg):
+            if msg.type == "error":
+                console_errors.append(msg.text)
+
+        page.on("console", handle_console)
+
+        # Navigate and wait for connection
+        page.goto(BASE_URL)
+        page.wait_for_timeout(1000)
+
+        # Verify initial connection
+        status_text = page.locator("#status-text")
+        expect(status_text).to_have_text("Online")
+
+        # Inject invalid JSON via JavaScript
+        # This simulates receiving malformed data from server
+        page.evaluate("""
+            const invalidEvent = new MessageEvent('message', {
+                data: 'not valid json {'
+            });
+            ws.dispatchEvent(invalidEvent);
+        """)
+
+        # Wait for error to be processed
+        page.wait_for_timeout(500)
+
+        # Check that parse error was logged
+        assert any("parse" in err.lower() or "json" in err.lower() for err in console_errors), \
+            f"JSON parse error should be logged. Console errors: {console_errors}"
+
+        # App should still be functional
+        expect(status_text).to_have_text("Online")
+
+        # UI should still be responsive
+        mute_button = page.locator("#mute-button")
+        mute_button.click()
+        expect(mute_button).to_have_class(re.compile(r'\bmuted\b'))
+
+        # Should be able to unmute too
+        mute_button.click()
+        expect(mute_button).not_to_have_class(re.compile(r'\bmuted\b'))
+
+    def test_app_recovers_after_multiple_errors(self, page: Page):
+        """Test that app continues working after multiple error scenarios.
+
+        Verifies:
+        - Multiple consecutive errors don't accumulate and crash
+        - App remains responsive throughout
+        """
+        # Navigate and wait for connection
+        page.goto(BASE_URL)
+        page.wait_for_timeout(1000)
+
+        status_text = page.locator("#status-text")
+        expect(status_text).to_have_text("Online")
+
+        # Send multiple invalid messages
+        for i in range(5):
+            page.evaluate(f"""
+                const invalidEvent = new MessageEvent('message', {{
+                    data: 'invalid json {i}'
+                }});
+                ws.dispatchEvent(invalidEvent);
+            """)
+            page.wait_for_timeout(100)
+
+        # Send multiple error messages
+        for i in range(3):
+            page.evaluate(f"""
+                const errorEvent = new MessageEvent('message', {{
+                    data: JSON.stringify({{type: 'error', message: 'Error {i}'}})
+                }});
+                ws.dispatchEvent(errorEvent);
+            """)
+            page.wait_for_timeout(100)
+
+        # App should still be online and functional
+        expect(status_text).to_have_text("Online")
+
+        # Test mute functionality still works
+        mute_button = page.locator("#mute-button")
+        user_status = page.locator("#user-status")
+
+        mute_button.click()
+        expect(user_status).to_have_text("Muted")
+
+        mute_button.click()
+        expect(user_status).not_to_have_text("Muted")

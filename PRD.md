@@ -283,9 +283,9 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Context7 (Playwright Python)
 
 **Acceptance Criteria:**
-- [ ] Playwright test: Server error message displayed
-- [ ] Playwright test: Invalid JSON doesn't crash app
-- [ ] `pytest tests/test_e2e.py::test_errors -v` passes
+- [x] Playwright test: Server error message displayed
+- [x] Playwright test: Invalid JSON doesn't crash app
+- [x] `pytest tests/test_e2e.py::test_errors -v` passes
 
 ---
 
