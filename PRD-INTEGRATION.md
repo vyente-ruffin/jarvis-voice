@@ -80,12 +80,12 @@ logger.info(f"WebSocket connected: user_id={user_id}")
 **Description:** As a developer, I need to configure Voice Live with memory function calling tools.
 
 **Acceptance Criteria:**
-- [ ] Import MEMORY_TOOLS from memory_tools.py
-- [ ] Modify VoiceLiveSession.__init__ to accept tools parameter
-- [ ] Pass tools in RequestSession configuration
-- [ ] Set tool_choice to "auto"
-- [ ] Update instructions to mention memory capabilities
-- [ ] Typecheck passes
+- [x] Import MEMORY_TOOLS from memory_tools.py
+- [x] Modify VoiceLiveSession.__init__ to accept tools parameter
+- [x] Pass tools in RequestSession configuration
+- [x] Set tool_choice to "auto"
+- [x] Update instructions to mention memory capabilities
+- [x] Typecheck passes
 
 **Updated Instructions:**
 ```python

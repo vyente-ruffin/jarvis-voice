@@ -17,13 +17,25 @@ from azure.ai.voicelive.models import (
     AudioEchoCancellation,
     AudioNoiseReduction,
     AzureStandardVoice,
+    FunctionTool,
     InputAudioFormat,
     Modality,
     OutputAudioFormat,
     RequestSession,
     ServerEventType,
-    ServerVad
+    ServerVad,
+    Tool,
+    ToolChoiceLiteral,
 )
+
+from src.memory_tools import MEMORY_TOOLS
+
+# Default instructions with memory capabilities
+VOICE_LIVE_INSTRUCTIONS = """You are JARVIS, a helpful AI assistant with long-term memory.
+You can remember facts about the user across sessions.
+Use search_memory before answering personal questions like "what's my favorite..." or "do you remember...".
+Use add_memory when the user shares personal information, preferences, or important details.
+Be conversational, concise, and helpful."""
 
 
 class VoiceLiveSession:
@@ -45,8 +57,9 @@ class VoiceLiveSession:
         api_key: str,
         model: str = "gpt-4o-mini-realtime-preview",
         voice: str = "en-US-AvaNeural",
-        instructions: str = "You are a helpful voice assistant. Be conversational and concise.",
-        user_id: str = "anonymous_user"
+        instructions: str = VOICE_LIVE_INSTRUCTIONS,
+        user_id: str = "anonymous_user",
+        tools: Optional[list[dict[str, Any]]] = None
     ):
         self.endpoint = endpoint
         self.api_key = api_key
@@ -54,6 +67,7 @@ class VoiceLiveSession:
         self.voice = voice
         self.instructions = instructions
         self.user_id = user_id
+        self.tools = tools if tools is not None else MEMORY_TOOLS
         
         # Internal connection state
         self._context_manager = None
@@ -85,7 +99,19 @@ class VoiceLiveSession:
         
         # Configure session
         voice_config = AzureStandardVoice(name=self.voice)
-        
+
+        # Convert tool definitions to FunctionTool objects
+        function_tools: list[Tool] = []
+        for tool_def in self.tools:
+            if tool_def.get("type") == "function":
+                function_tools.append(
+                    FunctionTool(
+                        name=tool_def["name"],
+                        description=tool_def.get("description", ""),
+                        parameters=tool_def.get("parameters", {}),
+                    )
+                )
+
         session_config = RequestSession(
             modalities=[Modality.TEXT, Modality.AUDIO],
             instructions=self.instructions,
@@ -99,6 +125,8 @@ class VoiceLiveSession:
             ),
             input_audio_echo_cancellation=AudioEchoCancellation(),
             input_audio_noise_reduction=AudioNoiseReduction(type="azure_deep_noise_suppression"),
+            tools=function_tools if function_tools else None,
+            tool_choice=ToolChoiceLiteral.AUTO if function_tools else None,
         )
         
         await self._connection.session.update(session=session_config)
