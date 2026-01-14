@@ -105,8 +105,91 @@
   - Use page.reload() for refresh tests
 ---
 
-## Next: US-010 - Playwright E2E test - Mute/unmute functionality
+### US-010: Playwright E2E test - Mute/unmute functionality ✅
+- Implemented 3 Playwright E2E tests in TestMuteUnmute class
+- Files changed:
+  - tests/test_e2e.py (added TestMuteUnmute class)
+  - PRD.md (marked acceptance criteria complete)
+- Learnings for future iterations:
+  - Use re.compile(r'\bmuted\b') for class matching to avoid partial matches
+  - Mute button uses class toggle, not attribute
+  - User status element shows "Muted" text and has "muted" class when muted
+
+---
+
+## Iteration 11 - US-010
+- Implemented Playwright E2E tests for mute/unmute functionality
+- Files changed:
+  - tests/test_e2e.py (added 3 tests in TestMuteUnmute class)
+- Learnings for future iterations:
+  - Server was already running on port 8000 from previous iteration
+  - All 8 E2E tests pass
+
+---
+
+### US-011: Playwright E2E test - Reconnection ✅
+- Implemented 3 Playwright E2E tests in TestReconnection class
+- Files changed:
+  - tests/test_e2e.py (added TestReconnection class)
+  - PRD.md (marked acceptance criteria complete)
+- Learnings for future iterations:
+  - Use page.evaluate("ws.close()") to trigger WebSocket disconnect from client
+  - Reconnect timeout is 2 seconds (wait 3s+ in tests for buffer)
+  - WebSocket events captured via page.on("websocket", handler)
+  - Capture URLs in list for comparing across reconnects
+
+---
+
+## Iteration 12 - US-011
+- Implemented Playwright E2E tests for WebSocket reconnection behavior
+- Tests verify:
+  - Status shows "Offline" on disconnect
+  - Auto-reconnect after 2 seconds
+  - Reconnection uses same user_id from localStorage
+- All 11 E2E tests pass
+
+---
+
+### US-012: Playwright E2E test - Error handling ✅
+- Implemented 3 Playwright E2E tests in TestErrorHandling class
+- Files changed:
+  - tests/test_e2e.py (added TestErrorHandling class)
+  - PRD.md (marked acceptance criteria complete)
+- Learnings for future iterations:
+  - Use page.on("console", handler) to capture console.error logs
+  - Use page.evaluate() to inject MessageEvent for simulating server messages
+  - App has try-catch in handleMessage for JSON parse errors
+  - Test graceful degradation by checking app still functions after errors
+
+---
+
+## Iteration 13 - US-012
+- Implemented Playwright E2E tests for error handling
+- Tests verify:
+  - Server error messages are logged to console and don't crash app
+  - Invalid JSON messages are handled gracefully
+  - App recovers after multiple consecutive errors
+- All 14 E2E tests pass
+
+---
+
+## Next: US-013 - Dockerfile for production
 
 Ralph will start from here.
+
+---
+
+### US-013: Dockerfile for production ✅
+- Created multi-stage Dockerfile with Python 3.11 slim base
+- Builder stage: installs gcc and creates venv
+- Production stage: copies venv, app code, creates non-root user
+- Added HEALTHCHECK instruction for container health monitoring
+- Files changed:
+  - Dockerfile (updated with multi-stage build)
+- Learnings for future iterations:
+  - Multi-stage builds reduce final image size by excluding build tools
+  - Use HEALTHCHECK for container orchestration (Azure Container Apps)
+  - Non-root user improves container security
+  - Virtual environment in /opt/venv keeps dependencies isolated
 
 ---

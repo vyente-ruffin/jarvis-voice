@@ -301,12 +301,12 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Context7 (Docker best practices), Azure MCP (Container Apps)
 
 **Acceptance Criteria:**
-- [ ] Dockerfile created with Python 3.11 slim base
-- [ ] Multi-stage build for smaller image
-- [ ] Health check endpoint works in container
-- [ ] `docker build -t jarvis-voice .` succeeds
-- [ ] `docker run -p 8000:8000 jarvis-voice` starts
-- [ ] `curl http://localhost:8000/health` returns 200
+- [x] Dockerfile created with Python 3.11 slim base
+- [x] Multi-stage build for smaller image
+- [x] Health check endpoint works in container
+- [x] `docker build -t jarvis-voice .` succeeds
+- [x] `docker run -p 8000:8000 jarvis-voice` starts
+- [x] `curl http://localhost:8000/health` returns 200
 
 ---
 
