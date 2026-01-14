@@ -18,6 +18,15 @@ param voiceLiveModel string = 'gpt-4o-mini-realtime-preview'
 @description('Voice Live voice name')
 param voiceLiveVoice string = 'en-US-AvaNeural'
 
+@description('Memory API URL')
+param memoryApiUrl string = 'https://mem0-api.greenstone-413be1c4.eastus.azurecontainerapps.io'
+
+@description('Memory timeout in seconds')
+param memoryTimeoutSeconds string = '3'
+
+@description('Enable memory feature')
+param enableMemory string = 'true'
+
 // Generate unique suffix for globally unique names
 var uniqueSuffix = uniqueString(resourceGroup().id)
 var acrName = '${baseName}acr${uniqueSuffix}'
@@ -26,14 +35,17 @@ var caeName = '${baseName}-cae-${uniqueSuffix}'
 var caName = '${baseName}-api'
 
 // Container Registry
-resource containerRegistry 'Microsoft.ContainerRegistry/registries@2023-07-01' = {
+// Using latest API version 2025-04-01
+// Uses managed identity for pull access (no admin credentials)
+resource containerRegistry 'Microsoft.ContainerRegistry/registries@2025-04-01' = {
   name: acrName
   location: location
   sku: {
     name: 'Basic'
   }
   properties: {
-    adminUserEnabled: true
+    adminUserEnabled: false
+    // anonymousPullEnabled is NOT enabled per security best practices
   }
 }
 
@@ -50,7 +62,8 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
 }
 
 // Container Apps Environment
-resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01' = {
+// Using latest API version 2025-01-01
+resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2025-01-01' = {
   name: caeName
   location: location
   properties: {
@@ -65,9 +78,13 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2023-05-01'
 }
 
 // Container App
-resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
+// Using latest API version 2025-01-01
+resource containerApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: caName
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     managedEnvironmentId: containerAppsEnvironment.id
     configuration: {
@@ -80,15 +97,10 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
       registries: [
         {
           server: containerRegistry.properties.loginServer
-          username: containerRegistry.listCredentials().username
-          passwordSecretRef: 'acr-password'
+          identity: 'system'
         }
       ]
       secrets: [
-        {
-          name: 'acr-password'
-          value: containerRegistry.listCredentials().passwords[0].value
-        }
         {
           name: 'voice-live-endpoint'
           value: voiceLiveEndpoint
@@ -125,6 +137,38 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
               name: 'AZURE_VOICE_LIVE_VOICE'
               value: voiceLiveVoice
             }
+            {
+              name: 'MEMORY_API_URL'
+              value: memoryApiUrl
+            }
+            {
+              name: 'MEMORY_TIMEOUT_SECONDS'
+              value: memoryTimeoutSeconds
+            }
+            {
+              name: 'ENABLE_MEMORY'
+              value: enableMemory
+            }
+          ]
+          probes: [
+            {
+              type: 'Liveness'
+              httpGet: {
+                path: '/health'
+                port: 8000
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 30
+            }
+            {
+              type: 'Readiness'
+              httpGet: {
+                path: '/health'
+                port: 8000
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+            }
           ]
         }
       ]
@@ -143,6 +187,18 @@ resource containerApp 'Microsoft.App/containerApps@2023-05-01' = {
         ]
       }
     }
+  }
+}
+
+// Role assignment for Container App to pull from ACR
+// AcrPull role: 7f951dda-4ed3-4680-a7ca-43fe172d538d
+resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  scope: containerRegistry
+  name: guid(containerRegistry.id, containerApp.id, '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+    principalId: containerApp.identity.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 

@@ -322,13 +322,13 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Azure MCP (Container Apps, deployment best practices), Microsoft Learn (Container Apps)
 
 **Acceptance Criteria:**
-- [ ] infra/main.bicep created for Container App
-- [ ] Environment variables configured as secrets
-- [ ] Container registry configured (ACR)
-- [ ] `az deployment group what-if` validates successfully
-- [ ] Deployment succeeds
-- [ ] Public URL accessible and /health returns 200
-- [ ] WebSocket connection works from browser
+- [x] infra/main.bicep created for Container App
+- [x] Environment variables configured as secrets
+- [x] Container registry configured (ACR)
+- [x] `az deployment group what-if` validates successfully
+- [x] Deployment succeeds
+- [x] Public URL accessible and /health returns 200
+- [x] WebSocket connection works from browser
 
 ---
 

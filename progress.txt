@@ -193,3 +193,29 @@ Ralph will start from here.
   - Virtual environment in /opt/venv keeps dependencies isolated
 
 ---
+
+## Iteration 14 - US-014: Azure Container Apps deployment ✅
+- Updated infra/main.bicep with:
+  - Latest API versions (2025-01-01 for Container Apps, 2025-04-01 for ACR)
+  - Memory environment variables (MEMORY_API_URL, MEMORY_TIMEOUT_SECONDS, ENABLE_MEMORY)
+  - Correct env var names (AZURE_VOICE_LIVE_* to match server.py)
+  - Liveness and readiness probes for /health endpoint
+  - System-assigned managed identity for ACR pull (more secure than admin credentials)
+  - AcrPull role assignment for the Container App identity
+- Deployed to Azure:
+  - ACR: jarvisacrafttmtxdb5reg.azurecr.io
+  - Container App URL: https://jarvis-api.lemonbay-c4ff031f.eastus2.azurecontainerapps.io
+  - /health endpoint returns 200 ✓
+  - WebSocket /ws/voice works ✓
+- Files changed:
+  - infra/main.bicep (updated with managed identity)
+  - PRD.md (marked acceptance criteria complete)
+- Learnings for future iterations:
+  - Use managed identity for ACR pull instead of admin credentials (more reliable)
+  - Admin credentials can cause ImagePullBackOff issues
+  - Use `az acr build` to build images directly in Azure if local push fails
+  - Role assignment propagation takes a few seconds
+  - curl cannot test WebSocket endpoints - use Python websockets library
+  - Container Apps logs via `az containerapp logs show --type console`
+
+---
