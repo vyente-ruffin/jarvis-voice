@@ -140,6 +140,47 @@ class TestStaticFiles:
             assert "text/html" in response.headers.get("content-type", "")
 
 
+class TestUserIdExtraction:
+    """Tests for US-001: Extract user_id from WebSocket connection."""
+
+    def test_websocket_extracts_user_id_from_query_params(self):
+        """WebSocket with ?user_id=test123 should extract 'test123'."""
+        from src.server import app
+
+        client = TestClient(app)
+
+        with client.websocket_connect("/ws/voice?user_id=test123") as websocket:
+            # Should connect successfully
+            data = websocket.receive_json()
+            assert data.get("type") == "connected"
+            # user_id should be extracted (we'll verify through logs or behavior)
+
+    def test_websocket_defaults_to_anonymous_when_no_user_id(self):
+        """WebSocket without user_id should default to 'anonymous_user'."""
+        from src.server import app
+
+        client = TestClient(app)
+
+        with client.websocket_connect("/ws/voice") as websocket:
+            # Should connect successfully with default user_id
+            data = websocket.receive_json()
+            assert data.get("type") == "connected"
+
+    def test_websocket_user_id_logged_on_connection(self, caplog):
+        """user_id should be logged when WebSocket connects."""
+        import logging
+        from src.server import app
+
+        client = TestClient(app)
+
+        with caplog.at_level(logging.INFO):
+            with client.websocket_connect("/ws/voice?user_id=log_test_user") as websocket:
+                websocket.receive_json()
+
+        # Check that user_id was logged
+        assert any("log_test_user" in record.message for record in caplog.records)
+
+
 class TestCORSMiddleware:
     """Tests for CORS middleware configuration."""
 

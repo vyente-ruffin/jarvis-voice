@@ -11,6 +11,7 @@ import os
 import asyncio
 import logging
 from typing import Optional
+from urllib.parse import parse_qs
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,6 +60,12 @@ async def websocket_voice(websocket: WebSocket):
     """WebSocket endpoint for voice communication."""
     await websocket.accept()
 
+    # Extract user_id from query string
+    query_string = websocket.scope.get("query_string", b"").decode()
+    params = parse_qs(query_string)
+    user_id = params.get("user_id", ["anonymous_user"])[0]
+    logger.info(f"WebSocket connected: user_id={user_id}")
+
     # Send connected message
     await websocket.send_json({"type": "connected"})
 
@@ -89,6 +96,7 @@ async def websocket_voice(websocket: WebSocket):
         model=VOICE_LIVE_MODEL,
         voice=VOICE_LIVE_VOICE,
         instructions=VOICE_LIVE_INSTRUCTIONS,
+        user_id=user_id,
     )
 
     # Set up callbacks to forward events to WebSocket client

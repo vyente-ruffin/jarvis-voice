@@ -45,13 +45,15 @@ class VoiceLiveSession:
         api_key: str,
         model: str = "gpt-4o-mini-realtime-preview",
         voice: str = "en-US-AvaNeural",
-        instructions: str = "You are a helpful voice assistant. Be conversational and concise."
+        instructions: str = "You are a helpful voice assistant. Be conversational and concise.",
+        user_id: str = "anonymous_user"
     ):
         self.endpoint = endpoint
         self.api_key = api_key
         self.model = model
         self.voice = voice
         self.instructions = instructions
+        self.user_id = user_id
         
         # Internal connection state
         self._context_manager = None

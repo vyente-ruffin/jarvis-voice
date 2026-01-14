@@ -57,11 +57,11 @@ Integrate the memory modules from `jarvis-cloud-and-memory` into the `jarvis-voi
 **Description:** As a developer, I need to extract the user_id from the WebSocket query string.
 
 **Acceptance Criteria:**
-- [ ] Modify `server.py` websocket_voice function to extract user_id from query params
-- [ ] Default to "anonymous_user" if no user_id provided
-- [ ] Log user_id on connection
-- [ ] Pass user_id to VoiceLiveSession
-- [ ] Typecheck passes
+- [x] Modify `server.py` websocket_voice function to extract user_id from query params
+- [x] Default to "anonymous_user" if no user_id provided
+- [x] Log user_id on connection
+- [x] Pass user_id to VoiceLiveSession
+- [x] Typecheck passes
 
 **Implementation:**
 ```python
