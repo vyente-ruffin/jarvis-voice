@@ -46,10 +46,10 @@ Integrate the memory modules from `jarvis-cloud-and-memory` into the `jarvis-voi
 **Description:** As a developer, I need to add memory client dependencies.
 
 **Acceptance Criteria:**
-- [ ] Add `httpx>=0.25.0` to requirements.txt
-- [ ] Add `python-dotenv>=1.0.0` to requirements.txt (if not present)
-- [ ] Run `pip install -r requirements.txt` successfully
-- [ ] Typecheck passes
+- [x] Add `httpx>=0.25.0` to requirements.txt
+- [x] Add `python-dotenv>=1.0.0` to requirements.txt (if not present)
+- [x] Run `pip install -r requirements.txt` successfully
+- [x] Typecheck passes
 
 ---
 

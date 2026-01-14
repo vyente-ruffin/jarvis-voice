@@ -1,0 +1,62 @@
+# Progress Log
+
+## Learnings
+(Patterns discovered during implementation)
+
+---
+
+## Pre-Integration Notes
+
+### Source Modules (from ../src/)
+- memory_client.py - Async HTTP client for jarvis-cloud API
+- memory_tools.py - Voice Live function tool definitions
+- tool_handler.py - Routes function calls to memory client
+- logging_config.py - Structured JSON logging
+
+### Target Structure
+- src/server.py - FastAPI WebSocket server
+- src/voice_live.py - Azure Voice Live SDK wrapper
+- src/static/ - Frontend files
+
+### API Verified
+- Memory API: https://mem0-api.greenstone-413be1c4.eastus.azurecontainerapps.io
+- All memory modules tested with 126 passing tests
+
+### MCP Server Requirements
+- Code/Library docs → Context7 MCP server ONLY
+- Microsoft/Azure docs → Microsoft Learn MCP server ONLY
+- Azure operations → Azure MCP server ONLY
+- Playwright testing → Context7 for Playwright docs
+
+---
+
+## Completed Stories
+
+### US-001 - Copy memory modules into jarvis-voice ✅
+
+---
+
+## Iteration 1 - US-001 Copy Memory Modules
+- What was implemented: Copied 4 memory modules from ../src/ to ./src/
+- Files changed:
+  - src/memory_client.py (added)
+  - src/memory_tools.py (added)
+  - src/tool_handler.py (added)
+  - src/logging_config.py (added)
+- Learnings for future iterations:
+  - Files were already present (copied in a previous session) - verified via diff
+  - Use python3 not python on this system
+  - Run mypy on specific files to avoid pre-existing type errors in voice_live.py/server.py
+  - Pre-existing test failures exist due to Azure SDK import issues (not related to memory modules)
+---
+
+## Iteration 2 - US-002 Update requirements.txt
+- What was implemented: Verified httpx and python-dotenv are already in requirements.txt
+- Files changed: None (dependencies already present)
+  - httpx==0.27.0 already in requirements.txt (>= 0.25.0 requirement)
+  - python-dotenv==1.2.1 already in requirements.txt (>= 1.0.0 requirement)
+- Learnings for future iterations:
+  - Use pip3 not pip on this system
+  - Requirements were already sufficient from the original project setup
+  - Focus typecheck on specific modules to avoid pre-existing issues
+---
