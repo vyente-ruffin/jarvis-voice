@@ -129,11 +129,11 @@ Be conversational, concise, and helpful."""
 **Description:** As a developer, I need to add memory-related environment variables.
 
 **Acceptance Criteria:**
-- [ ] Add MEMORY_API_URL to .env.example
-- [ ] Add MEMORY_TIMEOUT_SECONDS to .env.example
-- [ ] Add ENABLE_MEMORY to .env.example
-- [ ] Document variables in README
-- [ ] Typecheck passes
+- [x] Add MEMORY_API_URL to .env.example
+- [x] Add MEMORY_TIMEOUT_SECONDS to .env.example
+- [x] Add ENABLE_MEMORY to .env.example
+- [x] Document variables in README
+- [x] Typecheck passes
 
 **Environment Variables:**
 ```bash

@@ -165,6 +165,8 @@ pytest tests/ -v
 
 ## Environment Variables
 
+### Azure Voice Live
+
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `AZURE_VOICE_LIVE_ENDPOINT` | Yes | Voice Live API endpoint |
@@ -172,6 +174,14 @@ pytest tests/ -v
 | `AZURE_VOICE_LIVE_MODEL` | No | Model (default: `gpt-4o-mini-realtime-preview`) |
 | `AZURE_VOICE_LIVE_VOICE` | No | Voice (default: `en-US-AvaNeural`) |
 | `AZURE_VOICE_LIVE_INSTRUCTIONS` | No | System prompt |
+
+### Memory Integration
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MEMORY_API_URL` | No | `https://mem0-api.greenstone-413be1c4.eastus.azurecontainerapps.io` | URL of the jarvis-cloud memory API |
+| `MEMORY_TIMEOUT_SECONDS` | No | `3` | Timeout for memory API calls in seconds |
+| `ENABLE_MEMORY` | No | `true` | Enable/disable memory feature |
 
 ## Key Implementation Details
 

@@ -120,3 +120,14 @@
   - Script must be included before app.js so functions are available
   - All 15 server tests still pass (frontend changes don't affect Python tests)
 ---
+
+## Iteration 7 - US-007 Add environment variables
+- What was implemented: Added memory-related environment variables to .env.example and documented them in README
+- Files changed:
+  - .env.example (added MEMORY_API_URL, MEMORY_TIMEOUT_SECONDS, ENABLE_MEMORY)
+  - README.md (added Memory Integration section to Environment Variables table)
+- Learnings for future iterations:
+  - Environment variables are documentation-only at this stage - no code changes needed
+  - README already had an Environment Variables section, just needed a subsection for memory
+  - All 15 server tests still pass
+---
