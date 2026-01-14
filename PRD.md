@@ -246,10 +246,10 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Context7 (Playwright Python)
 
 **Acceptance Criteria:**
-- [ ] Playwright test: Click mute button toggles muted class
-- [ ] Playwright test: Press 'M' key toggles mute
-- [ ] Playwright test: Status shows "Muted" when muted
-- [ ] `pytest tests/test_e2e.py::test_mute -v` passes
+- [x] Playwright test: Click mute button toggles muted class
+- [x] Playwright test: Press 'M' key toggles mute
+- [x] Playwright test: Status shows "Muted" when muted
+- [x] `pytest tests/test_e2e.py::test_mute -v` passes
 
 ---
 

@@ -163,3 +163,79 @@ class TestUserIdGeneration:
         user_id = page.evaluate("localStorage.getItem('jarvis_user_id')")
         assert user_id is not None, "New user_id should be generated"
         assert len(user_id) == 36, "user_id should be UUID format"
+
+
+class TestMuteUnmute:
+    """Tests for mute/unmute functionality (US-010)."""
+
+    def test_click_mute_button_toggles_muted_class(self, page: Page):
+        """Test that clicking the mute button toggles the muted class.
+
+        Verifies:
+        - Initially, mute button does not have 'muted' class
+        - After click, button has 'muted' class
+        - After second click, button does not have 'muted' class
+        """
+        page.goto(BASE_URL)
+        page.wait_for_timeout(500)
+
+        mute_button = page.locator("#mute-button")
+
+        # Initially not muted
+        expect(mute_button).not_to_have_class(re.compile(r'\bmuted\b'))
+
+        # Click to mute
+        mute_button.click()
+        expect(mute_button).to_have_class(re.compile(r'\bmuted\b'))
+
+        # Click again to unmute
+        mute_button.click()
+        expect(mute_button).not_to_have_class(re.compile(r'\bmuted\b'))
+
+    def test_press_m_key_toggles_mute(self, page: Page):
+        """Test that pressing 'M' key toggles mute state.
+
+        Verifies:
+        - Pressing 'M' key mutes when unmuted
+        - Pressing 'M' key again unmutes when muted
+        """
+        page.goto(BASE_URL)
+        page.wait_for_timeout(500)
+
+        mute_button = page.locator("#mute-button")
+
+        # Initially not muted
+        expect(mute_button).not_to_have_class(re.compile(r'\bmuted\b'))
+
+        # Press M to mute
+        page.keyboard.press("m")
+        expect(mute_button).to_have_class(re.compile(r'\bmuted\b'))
+
+        # Press M again to unmute
+        page.keyboard.press("m")
+        expect(mute_button).not_to_have_class(re.compile(r'\bmuted\b'))
+
+    def test_status_shows_muted_when_muted(self, page: Page):
+        """Test that status indicator shows 'Muted' when muted.
+
+        Verifies:
+        - User status shows 'Muted' when mute button is clicked
+        - User status no longer shows 'Muted' when unmuted
+        """
+        page.goto(BASE_URL)
+        page.wait_for_timeout(500)
+
+        user_status = page.locator("#user-status")
+        mute_button = page.locator("#mute-button")
+
+        # Initially not showing "Muted"
+        expect(user_status).not_to_have_text("Muted")
+
+        # Click to mute
+        mute_button.click()
+        expect(user_status).to_have_text("Muted")
+        expect(user_status).to_have_class(re.compile(r'\bmuted\b'))
+
+        # Click to unmute
+        mute_button.click()
+        expect(user_status).not_to_have_text("Muted")
