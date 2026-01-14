@@ -27,6 +27,26 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
+# Configure Azure Monitor / OpenTelemetry if connection string is available
+APPINSIGHTS_CONNECTION_STRING = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
+if APPINSIGHTS_CONNECTION_STRING:
+    try:
+        from azure.monitor.opentelemetry import configure_azure_monitor
+        from opentelemetry import trace
+
+        configure_azure_monitor(
+            connection_string=APPINSIGHTS_CONNECTION_STRING,
+            enable_live_metrics=True,
+        )
+        tracer = trace.get_tracer(__name__)
+        logger.info("Azure Monitor OpenTelemetry configured successfully")
+    except ImportError:
+        logger.warning("azure-monitor-opentelemetry not installed, telemetry disabled")
+        tracer = None
+else:
+    logger.info("APPLICATIONINSIGHTS_CONNECTION_STRING not set, telemetry disabled")
+    tracer = None
+
 app = FastAPI(title="Jarvis Voice API")
 
 # CORS middleware

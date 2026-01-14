@@ -1,12 +1,35 @@
 """Tool call handler for routing Voice Live function calls to memory operations."""
 
 import logging
+import os
+import time
 from typing import Any
 
 from src.memory_client import add_memory, search_memory
 
 # Configure logging
 logger = logging.getLogger(__name__)
+
+# OpenTelemetry tracing (optional)
+tracer = None
+try:
+    if os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING"):
+        from opentelemetry import trace
+        tracer = trace.get_tracer(__name__)
+except ImportError:
+    pass
+
+
+def _record_memory_event(operation: str, user_id: str, latency_ms: float, success: bool, **extra):
+    """Record custom telemetry event for memory operations."""
+    if tracer:
+        with tracer.start_as_current_span(f"memory.{operation}") as span:
+            span.set_attribute("memory.operation", operation)
+            span.set_attribute("memory.user_id", user_id)
+            span.set_attribute("memory.latency_ms", latency_ms)
+            span.set_attribute("memory.success", success)
+            for key, value in extra.items():
+                span.set_attribute(f"memory.{key}", value)
 
 
 async def handle_tool_call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
@@ -54,8 +77,13 @@ async def _handle_search_memory(arguments: dict[str, Any]) -> dict[str, Any]:
         }
 
     logger.info("Searching memory for user %s with query: %s", user_id, query)
+    start_time = time.time()
     results = await search_memory(query, user_id)
-    logger.info("Search returned %d results", len(results))
+    latency_ms = (time.time() - start_time) * 1000
+    logger.info("Search returned %d results in %.2fms", len(results), latency_ms)
+
+    # Record telemetry
+    _record_memory_event("search", user_id, latency_ms, True, result_count=len(results))
 
     return {
         "success": True,
@@ -84,16 +112,22 @@ async def _handle_add_memory(arguments: dict[str, Any]) -> dict[str, Any]:
         }
 
     logger.info("Adding memory for user %s: %s", user_id, text[:50])
+    start_time = time.time()
     result = await add_memory(text, user_id)
+    latency_ms = (time.time() - start_time) * 1000
 
     if result:
-        logger.info("Memory added successfully")
+        logger.info("Memory added successfully in %.2fms", latency_ms)
+        # Record telemetry
+        _record_memory_event("add", user_id, latency_ms, True)
         return {
             "success": True,
             "memory": result,
         }
     else:
-        logger.warning("Failed to add memory")
+        logger.warning("Failed to add memory after %.2fms", latency_ms)
+        # Record telemetry for failure
+        _record_memory_event("add", user_id, latency_ms, False)
         return {
             "success": False,
             "error": "Failed to add memory",

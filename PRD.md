@@ -344,12 +344,12 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Azure MCP (Application Insights), Microsoft Learn (Container Apps observability)
 
 **Acceptance Criteria:**
-- [ ] Application Insights resource in Bicep
-- [ ] APPLICATIONINSIGHTS_CONNECTION_STRING env var configured
-- [ ] opentelemetry-instrumentation-fastapi added to requirements
-- [ ] Requests visible in Application Insights
-- [ ] Custom events for memory operations logged
-- [ ] Memory operation latency visible in metrics
+- [x] Application Insights resource in Bicep
+- [x] APPLICATIONINSIGHTS_CONNECTION_STRING env var configured
+- [x] opentelemetry-instrumentation-fastapi added to requirements
+- [x] Requests visible in Application Insights
+- [x] Custom events for memory operations logged
+- [x] Memory operation latency visible in metrics
 
 ---
 

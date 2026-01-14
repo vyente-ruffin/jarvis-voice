@@ -219,3 +219,30 @@ Ralph will start from here.
   - Container Apps logs via `az containerapp logs show --type console`
 
 ---
+
+## Iteration 15 - US-015: Application Insights monitoring ✅
+- Added Application Insights resource to infra/main.bicep:
+  - Workspace-based Application Insights linked to Log Analytics
+  - APPLICATIONINSIGHTS_CONNECTION_STRING env var configured
+- Added OpenTelemetry instrumentation:
+  - azure-monitor-opentelemetry==1.6.0
+  - opentelemetry-instrumentation-fastapi==0.47b0
+- Added custom telemetry in tool_handler.py:
+  - Memory operation spans with latency tracking
+  - Attributes: operation, user_id, latency_ms, success, result_count
+- Deployed to Azure:
+  - Application Insights: jarvis-appi-afttmtxdb5reg
+  - Telemetry flowing (logs show "Items accepted")
+- Files changed:
+  - infra/main.bicep (added Application Insights resource)
+  - requirements.txt (added OpenTelemetry dependencies)
+  - src/server.py (added OpenTelemetry initialization)
+  - src/tool_handler.py (added memory operation telemetry)
+  - PRD.md (marked acceptance criteria complete)
+- Learnings for future iterations:
+  - Use workspace-based Application Insights (newer pattern)
+  - azure-monitor-opentelemetry auto-instruments FastAPI
+  - Custom spans for specific operations with tracer.start_as_current_span()
+  - Telemetry data appears in Application Insights after a few minutes delay
+
+---

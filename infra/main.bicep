@@ -33,6 +33,7 @@ var acrName = '${baseName}acr${uniqueSuffix}'
 var lawName = '${baseName}-law-${uniqueSuffix}'
 var caeName = '${baseName}-cae-${uniqueSuffix}'
 var caName = '${baseName}-api'
+var appInsightsName = '${baseName}-appi-${uniqueSuffix}'
 
 // Container Registry
 // Using latest API version 2025-04-01
@@ -58,6 +59,21 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2022-10-01' = {
       name: 'PerGB2018'
     }
     retentionInDays: 30
+  }
+}
+
+// Application Insights
+// Workspace-based Application Insights for telemetry
+resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = {
+  name: appInsightsName
+  location: location
+  kind: 'web'
+  properties: {
+    Application_Type: 'web'
+    WorkspaceResourceId: logAnalytics.id
+    IngestionMode: 'LogAnalytics'
+    publicNetworkAccessForIngestion: 'Enabled'
+    publicNetworkAccessForQuery: 'Enabled'
   }
 }
 
@@ -149,6 +165,10 @@ resource containerApp 'Microsoft.App/containerApps@2025-01-01' = {
               name: 'ENABLE_MEMORY'
               value: enableMemory
             }
+            {
+              name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+              value: applicationInsights.properties.ConnectionString
+            }
           ]
           probes: [
             {
@@ -207,3 +227,5 @@ output acrLoginServer string = containerRegistry.properties.loginServer
 output acrName string = containerRegistry.name
 output containerAppFqdn string = containerApp.properties.configuration.ingress.fqdn
 output containerAppUrl string = 'https://${containerApp.properties.configuration.ingress.fqdn}'
+output applicationInsightsName string = applicationInsights.name
+output applicationInsightsConnectionString string = applicationInsights.properties.ConnectionString
