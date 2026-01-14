@@ -246,3 +246,34 @@ Ralph will start from here.
   - Telemetry data appears in Application Insights after a few minutes delay
 
 ---
+
+## Iteration 16 - US-016: End-to-end production test (Partial)
+- Ran Playwright E2E tests against production URL
+- All 14 tests passed in 24.15s
+- Production URL: https://jarvis-api.lemonbay-c4ff031f.eastus2.azurecontainerapps.io
+- Files changed:
+  - PRD.md (marked E2E tests criterion complete)
+- Remaining acceptance criteria require MANUAL voice testing:
+  - Memory stored successfully (logs show add_memory)
+  - Memory recalled successfully (logs show search_memory)
+  - UI status indicators work in production
+  - Latency <500ms in Application Insights
+- Learnings for future iterations:
+  - Resource group is rg-youni-dev (not rg-jarvis-voice-eastus2-001)
+  - Use `az monitor app-insights query` to query Application Insights
+  - Telemetry may take time to propagate after deployment
+
+---
+
+## Next: Manual testing required for US-016
+
+The remaining US-016 criteria require human voice interaction:
+1. Open https://jarvis-api.lemonbay-c4ff031f.eastus2.azurecontainerapps.io
+2. Say "My name is [your name]"
+3. Verify UI shows "Storing memory..."
+4. Check Application Insights for add_memory event
+5. Refresh browser
+6. Say "What's my name?"
+7. Verify JARVIS responds correctly
+
+---

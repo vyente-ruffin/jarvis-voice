@@ -372,7 +372,7 @@ Docker build, Azure deployment, Application Insights.
 - [ ] Memory recalled successfully (logs show search_memory)
 - [ ] UI status indicators work in production
 - [ ] Latency <500ms in Application Insights
-- [ ] All Playwright E2E tests pass against production URL
+- [x] All Playwright E2E tests pass against production URL
 
 ---
 
