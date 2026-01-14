@@ -265,10 +265,10 @@ Docker build, Azure deployment, Application Insights.
 **MCP Servers:** Context7 (Playwright Python)
 
 **Acceptance Criteria:**
-- [ ] Playwright test: Status indicator shows "Offline" on disconnect
-- [ ] Playwright test: Auto-reconnect after 2 seconds
-- [ ] Playwright test: Reconnection uses same user_id
-- [ ] `pytest tests/test_e2e.py::test_reconnection -v` passes
+- [x] Playwright test: Status indicator shows "Offline" on disconnect
+- [x] Playwright test: Auto-reconnect after 2 seconds
+- [x] Playwright test: Reconnection uses same user_id
+- [x] `pytest tests/test_e2e.py::test_reconnection -v` passes
 
 ---
 

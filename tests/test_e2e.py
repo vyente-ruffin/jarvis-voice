@@ -239,3 +239,134 @@ class TestMuteUnmute:
         # Click to unmute
         mute_button.click()
         expect(user_status).not_to_have_text("Muted")
+
+
+class TestReconnection:
+    """Tests for WebSocket reconnection behavior (US-011)."""
+
+    def test_status_shows_offline_on_disconnect(self, page: Page):
+        """Test that status indicator shows 'Offline' when WebSocket disconnects.
+
+        Verifies:
+        - Initial connection establishes (status shows 'Online')
+        - After closing WebSocket, status changes to 'Offline'
+        """
+        ws_instance = None
+
+        def capture_websocket(ws):
+            nonlocal ws_instance
+            ws_instance = ws
+
+        page.on("websocket", capture_websocket)
+
+        # Navigate and wait for connection
+        page.goto(BASE_URL)
+        page.wait_for_timeout(1000)
+
+        # Verify connected state
+        status_text = page.locator("#status-text")
+        expect(status_text).to_have_text("Online")
+        expect(status_text).to_have_class(re.compile(r'\bconnected\b'))
+
+        # Wait for WebSocket to be captured
+        assert ws_instance is not None, "WebSocket should be captured"
+
+        # Close the WebSocket connection from client side using JavaScript
+        page.evaluate("ws.close()")
+
+        # Status should show Offline
+        page.wait_for_timeout(500)
+        expect(status_text).to_have_text("Offline")
+
+    def test_auto_reconnect_after_disconnect(self, page: Page):
+        """Test that WebSocket auto-reconnects after 2 seconds.
+
+        Verifies:
+        - After disconnect, client waits and reconnects
+        - Status goes from Offline → Connecting → Online
+        """
+        connection_count = 0
+
+        def count_websockets(ws):
+            nonlocal connection_count
+            connection_count += 1
+
+        page.on("websocket", count_websockets)
+
+        # Navigate and wait for first connection
+        page.goto(BASE_URL)
+        page.wait_for_timeout(1000)
+
+        status_text = page.locator("#status-text")
+        expect(status_text).to_have_text("Online")
+
+        initial_connections = connection_count
+        assert initial_connections >= 1, "Should have initial WebSocket connection"
+
+        # Close WebSocket to trigger disconnect
+        page.evaluate("ws.close()")
+        page.wait_for_timeout(500)
+
+        # Should be offline now
+        expect(status_text).to_have_text("Offline")
+
+        # Wait for reconnection (2 seconds timeout + some buffer)
+        page.wait_for_timeout(3000)
+
+        # Should have reconnected
+        expect(status_text).to_have_text("Online")
+
+        # Should have more connections than initial
+        assert connection_count > initial_connections, \
+            f"Should have reconnected: initial={initial_connections}, current={connection_count}"
+
+    def test_reconnection_uses_same_user_id(self, page: Page):
+        """Test that reconnection uses the same user_id from localStorage.
+
+        Verifies:
+        - Initial user_id is captured
+        - After reconnect, WebSocket URL contains same user_id
+        """
+        captured_urls = []
+
+        def capture_websocket_url(ws):
+            captured_urls.append(ws.url)
+
+        page.on("websocket", capture_websocket_url)
+
+        # Navigate and wait for initial connection
+        page.goto(BASE_URL)
+        page.wait_for_timeout(1000)
+
+        # Get user_id from localStorage
+        user_id = page.evaluate("localStorage.getItem('jarvis_user_id')")
+        assert user_id is not None, "user_id should be in localStorage"
+
+        # Verify first connection has user_id
+        assert len(captured_urls) >= 1, "Should have initial WebSocket connection"
+        initial_url = captured_urls[0]
+        assert user_id in initial_url, f"Initial URL should contain user_id: {initial_url}"
+
+        # Close WebSocket to trigger disconnect
+        page.evaluate("ws.close()")
+
+        # Wait for reconnection (2 seconds timeout + buffer)
+        page.wait_for_timeout(3000)
+
+        # Should have new connection
+        assert len(captured_urls) >= 2, \
+            f"Should have reconnected: urls={len(captured_urls)}"
+
+        # Verify reconnection URL has same user_id
+        reconnect_url = captured_urls[-1]
+        assert user_id in reconnect_url, \
+            f"Reconnection should use same user_id: {reconnect_url}"
+
+        # Extract user_ids from both URLs and compare
+        initial_user_id_match = re.search(r'user_id=([a-f0-9-]{36})', initial_url)
+        reconnect_user_id_match = re.search(r'user_id=([a-f0-9-]{36})', reconnect_url)
+
+        assert initial_user_id_match and reconnect_user_id_match, \
+            "Both URLs should have valid user_id"
+        assert initial_user_id_match.group(1) == reconnect_user_id_match.group(1), \
+            f"user_id should match: {initial_user_id_match.group(1)} vs {reconnect_user_id_match.group(1)}"
