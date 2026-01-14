@@ -384,6 +384,19 @@ body::after {
   color: var(--color-success);
 }
 
+.user-id-display {
+  margin-left: 15px;
+  padding-left: 15px;
+  border-left: 1px solid var(--color-text-dim);
+  color: var(--color-text-dim);
+  font-size: 0.65rem;
+}
+
+.user-id-display #user-id-suffix {
+  color: var(--color-user-primary);
+  font-weight: bold;
+}
+
 /* System state indicator */
 .system-state {
   position: absolute;

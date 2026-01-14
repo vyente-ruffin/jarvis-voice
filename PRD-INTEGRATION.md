@@ -117,11 +117,11 @@ Be conversational, concise, and helpful."""
 **Description:** As a developer, I need the frontend to generate and send user_id with WebSocket connection.
 
 **Acceptance Criteria:**
-- [ ] Copy `../static/js/user-id.js` to `./src/static/js/user-id.js`
-- [ ] Update frontend HTML/JS to include user-id.js
-- [ ] Modify WebSocket connection URL to include user_id query param
-- [ ] Display user_id suffix in UI (last 4 chars)
-- [ ] Verify changes work in browser
+- [x] Copy `../static/js/user-id.js` to `./src/static/js/user-id.js`
+- [x] Update frontend HTML/JS to include user-id.js
+- [x] Modify WebSocket connection URL to include user_id query param
+- [x] Display user_id suffix in UI (last 4 chars)
+- [x] Verify changes work in browser
 
 ---
 

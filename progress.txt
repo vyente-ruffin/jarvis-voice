@@ -60,3 +60,63 @@
   - Requirements were already sufficient from the original project setup
   - Focus typecheck on specific modules to avoid pre-existing issues
 ---
+
+## Iteration 3 - US-003 Extract user_id from WebSocket connection
+- What was implemented: Added user_id extraction from WebSocket query params
+- Files changed:
+  - src/server.py (added parse_qs import, user_id extraction logic, pass user_id to session)
+  - src/voice_live.py (added user_id parameter to __init__)
+  - tests/test_server.py (tests were already present for user_id extraction)
+- Learnings for future iterations:
+  - Use websocket.scope.get("query_string", b"") to get raw query string
+  - parse_qs returns lists, so access with [0] for single values
+  - VoiceLiveSession needed user_id param added for future function call handling
+  - All 15 server tests pass including 3 user_id-specific tests
+  - Pre-existing mypy errors in voice_live.py don't block functionality
+---
+
+## Iteration 4 - US-004 Add memory tools to VoiceLiveSession
+- What was implemented: Added memory function calling tools to Voice Live session configuration
+- Files changed:
+  - src/voice_live.py (added FunctionTool/ToolChoiceLiteral imports, MEMORY_TOOLS import, tools param, tool conversion, updated instructions)
+- Learnings for future iterations:
+  - Azure Voice Live SDK uses FunctionTool objects, not raw dicts - must convert MEMORY_TOOLS
+  - ToolChoiceLiteral.AUTO enables automatic tool selection
+  - Import Tool as base type for list annotation: `list[Tool]`
+  - RequestSession accepts `tools` and `tool_choice` parameters
+  - Pre-existing mypy errors are about None checks, not the new tool code
+  - All 15 server tests still pass after changes
+---
+
+## Iteration 5 - US-005 Handle function call events in voice_live.py
+- What was implemented: Added function call event handling to VoiceLiveSession
+- Files changed:
+  - src/voice_live.py (added json import, FunctionCallOutputItem/ItemType imports, tool_handler import, _pending_function_call state, on_function_call callback, CONVERSATION_ITEM_CREATED handler, RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE handler, _execute_function_call method)
+- Learnings for future iterations:
+  - Azure Voice Live SDK function call flow:
+    1. CONVERSATION_ITEM_CREATED with ItemType.FUNCTION_CALL gives name, call_id, item.id
+    2. RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE gives the arguments JSON string
+    3. After processing, send FunctionCallOutputItem via conversation.item.create
+    4. Call response.create() to trigger the AI to continue with the result
+  - Arguments come as a JSON string that needs json.loads()
+  - Memory functions need user_id injected since AI doesn't know it - inject in _execute_function_call
+  - FunctionCallOutputItem requires call_id and output (JSON string)
+  - conversation.item.create needs previous_item_id to maintain order
+  - Pre-existing mypy errors (lines 101, 106, 140, 173) are all about None checks, not new code
+  - All 15 server tests still pass
+---
+
+## Iteration 6 - US-006 Update frontend to send user_id
+- What was implemented: Added user_id to WebSocket connection and UI display
+- Files changed:
+  - src/static/js/user-id.js (added - copied from ../static/js/)
+  - src/static/index.html (added user-id.js script, added user-id-suffix display element)
+  - src/static/app.js (modified connectWebSocket to use buildWebSocketUrl, call displayUserIdInElement in init)
+  - src/static/styles.css (added .user-id-display and #user-id-suffix styles)
+- Learnings for future iterations:
+  - Static files are in src/static/ not just static/
+  - Create js/ subdirectory for additional scripts
+  - user-id.js provides getUserId(), getUserIdSuffix(), buildWebSocketUrl(), displayUserIdInElement()
+  - Script must be included before app.js so functions are available
+  - All 15 server tests still pass (frontend changes don't affect Python tests)
+---

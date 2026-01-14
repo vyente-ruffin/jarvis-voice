@@ -296,7 +296,8 @@ function connectWebSocket() {
 
   // Determine WebSocket URL based on current location
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}/ws/voice`;
+  const baseUrl = `${protocol}//${window.location.host}/ws/voice`;
+  const wsUrl = buildWebSocketUrl(baseUrl);
 
   ws = new WebSocket(wsUrl);
 
@@ -668,6 +669,9 @@ function handleKeyDown(e) {
  * Initialize application
  */
 async function init() {
+  // Display user ID suffix in UI
+  displayUserIdInElement('user-id-suffix');
+
   // Set up event listeners
   muteButton.addEventListener('click', toggleMute);
   window.addEventListener('keydown', handleKeyDown);
