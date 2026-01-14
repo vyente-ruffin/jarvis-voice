@@ -102,14 +102,14 @@ Be conversational, concise, and helpful."""
 **Description:** As a developer, I need to handle function call events from Voice Live and execute memory operations.
 
 **Acceptance Criteria:**
-- [ ] Import tool_handler module
-- [ ] Add on_function_call callback to VoiceLiveSession
-- [ ] Detect function call events in _handle_events loop
-- [ ] Call tool_handler.handle_tool_call with function name and arguments
-- [ ] Send function output back via conversation.item.create
-- [ ] Trigger response.create to continue conversation
-- [ ] Log function calls for debugging
-- [ ] Typecheck passes
+- [x] Import tool_handler module
+- [x] Add on_function_call callback to VoiceLiveSession
+- [x] Detect function call events in _handle_events loop
+- [x] Call tool_handler.handle_tool_call with function name and arguments
+- [x] Send function output back via conversation.item.create
+- [x] Trigger response.create to continue conversation
+- [x] Log function calls for debugging
+- [x] Typecheck passes
 
 ---
 

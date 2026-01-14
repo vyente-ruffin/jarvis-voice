@@ -7,6 +7,7 @@ managing voice sessions with callbacks for audio, transcripts, and events.
 
 import asyncio
 import base64
+import json
 import logging
 from typing import Optional, Callable, Any
 
@@ -17,8 +18,10 @@ from azure.ai.voicelive.models import (
     AudioEchoCancellation,
     AudioNoiseReduction,
     AzureStandardVoice,
+    FunctionCallOutputItem,
     FunctionTool,
     InputAudioFormat,
+    ItemType,
     Modality,
     OutputAudioFormat,
     RequestSession,
@@ -29,6 +32,7 @@ from azure.ai.voicelive.models import (
 )
 
 from src.memory_tools import MEMORY_TOOLS
+from src.tool_handler import handle_tool_call
 
 # Default instructions with memory capabilities
 VOICE_LIVE_INSTRUCTIONS = """You are JARVIS, a helpful AI assistant with long-term memory.
@@ -74,7 +78,10 @@ class VoiceLiveSession:
         self._connection = None
         self._event_task: Optional[asyncio.Task] = None
         self._connected = False
-        
+
+        # Function call tracking state
+        self._pending_function_call: Optional[dict[str, Any]] = None
+
         # Callbacks (all optional)
         self.on_audio: Optional[Callable[[bytes], Any]] = None
         self.on_transcript: Optional[Callable[[str], Any]] = None
@@ -82,6 +89,7 @@ class VoiceLiveSession:
         self.on_speech_stopped: Optional[Callable[[], Any]] = None
         self.on_status: Optional[Callable[[str], Any]] = None
         self.on_error: Optional[Callable[[str], Any]] = None
+        self.on_function_call: Optional[Callable[[str, dict[str, Any], dict[str, Any]], Any]] = None
     
     async def connect(self) -> None:
         """Establish connection to Voice Live API."""
@@ -206,7 +214,77 @@ class VoiceLiveSession:
         elif event.type == ServerEventType.ERROR:
             if self.on_error:
                 await self._call_callback(self.on_error, event.error.message)
-    
+
+        elif event.type == ServerEventType.CONVERSATION_ITEM_CREATED:
+            # Detect function call items
+            if hasattr(event, 'item') and event.item is not None:
+                if event.item.type == ItemType.FUNCTION_CALL:
+                    logger.info(f"Function call detected: {event.item.name} (call_id={event.item.call_id})")
+                    self._pending_function_call = {
+                        "name": event.item.name,
+                        "call_id": event.item.call_id,
+                        "previous_item_id": event.item.id,
+                    }
+
+        elif event.type == ServerEventType.RESPONSE_FUNCTION_CALL_ARGUMENTS_DONE:
+            # Capture the arguments for the pending function call
+            if self._pending_function_call and event.call_id == self._pending_function_call["call_id"]:
+                logger.info(f"Function arguments received for {self._pending_function_call['name']}: {event.arguments}")
+                self._pending_function_call["arguments"] = event.arguments
+                # Execute the function call
+                await self._execute_function_call()
+
+    async def _execute_function_call(self) -> None:
+        """Execute a pending function call and send the result back."""
+        if not self._pending_function_call or "arguments" not in self._pending_function_call:
+            return
+
+        function_name = self._pending_function_call["name"]
+        call_id = self._pending_function_call["call_id"]
+        previous_item_id = self._pending_function_call["previous_item_id"]
+        arguments_str = self._pending_function_call["arguments"]
+
+        # Parse arguments
+        try:
+            arguments = json.loads(arguments_str) if arguments_str else {}
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse function arguments: {arguments_str}")
+            arguments = {}
+
+        # Inject user_id for memory functions
+        if function_name in ("search_memory", "add_memory"):
+            arguments["user_id"] = self.user_id
+            logger.info(f"Injected user_id={self.user_id} for {function_name}")
+
+        logger.info(f"Executing function: {function_name} with args: {arguments}")
+
+        # Call the tool handler
+        result = await handle_tool_call(function_name, arguments)
+        logger.info(f"Function result: {result}")
+
+        # Notify via callback if set
+        if self.on_function_call:
+            await self._call_callback(self.on_function_call, function_name, arguments, result)
+
+        # Send result back to Voice Live
+        if self._connection:
+            function_output = FunctionCallOutputItem(
+                call_id=call_id,
+                output=json.dumps(result),
+            )
+            await self._connection.conversation.item.create(
+                previous_item_id=previous_item_id,
+                item=function_output,
+            )
+            logger.info(f"Function output sent for call_id={call_id}")
+
+            # Request new response to continue the conversation
+            await self._connection.response.create()
+            logger.info("Requested new response after function call")
+
+        # Clear the pending function call
+        self._pending_function_call = None
+
     async def _call_callback(self, callback: Callable, *args) -> None:
         """Call a callback, handling both sync and async callbacks."""
         if asyncio.iscoroutinefunction(callback):
