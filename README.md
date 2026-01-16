@@ -1,8 +1,8 @@
 # Jarvis Voice Assistant
 
-A web-based real-time voice assistant using Azure Voice Live API, deployed to Azure Container Apps.
+A web-based real-time voice assistant using Azure Voice Live API with long-term memory, deployed to Azure Container Apps.
 
-**Live URL:** https://jarvis-api.orangemushroom-8f6b80a4.eastus2.azurecontainerapps.io
+**Live URL:** https://jarvis-api.lemonbay-c4ff031f.eastus2.azurecontainerapps.io
 
 ## Architecture
 
@@ -20,20 +20,22 @@ Browser (any device)           Azure Container Apps            Azure Voice Live 
 
 ## Azure Resources
 
-### Resource Group: `rg-jarvis` (eastus2)
+### Resource Group: `rg-youni-dev` (eastus2)
 
 | Resource | Type | Name | Purpose |
 |----------|------|------|---------|
-| Container Registry | Microsoft.ContainerRegistry | `jarvisacrvhtdfumtik3ey` | Docker images |
+| Container Registry | Microsoft.ContainerRegistry | `jarvisacrafttmtxdb5reg` | Docker images |
 | Log Analytics | Microsoft.OperationalInsights | `jarvis-law-*` | Logging |
-| Container Apps Environment | Microsoft.App/managedEnvironments | `jarvis-cae-*` | Hosts container |
-| Container App | Microsoft.App/containerApps | `jarvis-api` | The web app |
+| Container Apps Environment | Microsoft.App/managedEnvironments | `jarvis-cae-afttmtxdb5reg` | Hosts containers |
+| Container App | Microsoft.App/containerApps | `jarvis-api` | Voice assistant |
+| Container App | Microsoft.App/containerApps | `agent-memory-server` | Memory API |
+| Container App | Microsoft.App/containerApps | `redis` | Vector database (internal) |
 
 ### External Resource (pre-existing)
 
 | Resource | Type | Location | Purpose |
 |----------|------|----------|---------|
-| `voicelive-service` | Azure AI Services | eastus2 | Voice Live API endpoint |
+| `jarvis-voice-openai` | Azure OpenAI | eastus2 | Voice Live API endpoint |
 
 ## Project Structure
 
@@ -99,17 +101,17 @@ For LLMs integrating this into larger applications:
 
 ```bash
 # 1. Create resource group
-az group create --name rg-jarvis --location eastus2
+az group create --name rg-youni-dev --location eastus2
 
 # 2. Deploy infrastructure
 az deployment group create \
-  --resource-group rg-jarvis \
+  --resource-group rg-youni-dev \
   --template-file infra/main.bicep \
-  --parameters voiceLiveEndpoint="https://eastus2.api.cognitive.microsoft.com/" \
+  --parameters voiceLiveEndpoint="https://jarvis-voice-openai.openai.azure.com" \
                voiceLiveApiKey="YOUR_API_KEY"
 
 # 3. Get ACR name from output
-ACR_NAME=$(az acr list -g rg-jarvis --query "[0].name" -o tsv)
+ACR_NAME=$(az acr list -g rg-youni-dev --query "[0].name" -o tsv)
 
 # 4. Build and push Docker image
 az acr login --name $ACR_NAME
@@ -117,7 +119,7 @@ docker buildx build --platform linux/amd64 \
   -t $ACR_NAME.azurecr.io/jarvis-api:latest --push .
 
 # 5. Update container app with image
-az containerapp update --name jarvis-api --resource-group rg-jarvis \
+az containerapp update --name jarvis-api --resource-group rg-youni-dev \
   --image $ACR_NAME.azurecr.io/jarvis-api:latest
 ```
 
@@ -125,23 +127,23 @@ az containerapp update --name jarvis-api --resource-group rg-jarvis \
 
 ```bash
 # Build and push new version
-az acr login --name jarvisacrvhtdfumtik3ey
+az acr login --name jarvisacrafttmtxdb5reg
 docker buildx build --platform linux/amd64 \
-  -t jarvisacrvhtdfumtik3ey.azurecr.io/jarvis-api:v5 --push .
+  -t jarvisacrafttmtxdb5reg.azurecr.io/jarvis-api:latest --push .
 
 # Update container app
-az containerapp update --name jarvis-api --resource-group rg-jarvis \
-  --image jarvisacrvhtdfumtik3ey.azurecr.io/jarvis-api:v5
+az containerapp update --name jarvis-api --resource-group rg-youni-dev \
+  --image jarvisacrafttmtxdb5reg.azurecr.io/jarvis-api:latest
 ```
 
 ### Update Voice Live Credentials
 
 ```bash
-az containerapp secret set --name jarvis-api --resource-group rg-jarvis \
+az containerapp secret set --name jarvis-api --resource-group rg-youni-dev \
   --secrets "voice-live-endpoint=YOUR_ENDPOINT" \
             "voice-live-api-key=YOUR_KEY"
-az containerapp revision restart --name jarvis-api --resource-group rg-jarvis \
-  --revision $(az containerapp revision list -n jarvis-api -g rg-jarvis --query "[0].name" -o tsv)
+az containerapp revision restart --name jarvis-api --resource-group rg-youni-dev \
+  --revision $(az containerapp revision list -n jarvis-api -g rg-youni-dev --query "[0].name" -o tsv)
 ```
 
 ## Local Development
@@ -175,12 +177,12 @@ pytest tests/ -v
 | `AZURE_VOICE_LIVE_VOICE` | No | Voice (default: `en-US-AvaNeural`) |
 | `AZURE_VOICE_LIVE_INSTRUCTIONS` | No | System prompt |
 
-### Memory Integration
+### Memory Integration (Redis Agent Memory Server)
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `MEMORY_API_URL` | No | `https://mem0-api.greenstone-413be1c4.eastus.azurecontainerapps.io` | URL of the jarvis-cloud memory API |
-| `MEMORY_TIMEOUT_SECONDS` | No | `3` | Timeout for memory API calls in seconds |
+| `MEMORY_SERVER_URL` | No | `https://agent-memory-server.lemonbay-c4ff031f.eastus2.azurecontainerapps.io` | Redis agent-memory-server API |
+| `MEMORY_TIMEOUT_SECONDS` | No | `30` | Timeout for memory API calls in seconds |
 | `ENABLE_MEMORY` | No | `true` | Enable/disable memory feature |
 
 ## Key Implementation Details
@@ -245,10 +247,10 @@ python voice-live-chat.py
 
 ```bash
 # View logs
-az containerapp logs show --name jarvis-api --resource-group rg-jarvis --tail 100
+az containerapp logs show --name jarvis-api --resource-group rg-youni-dev --tail 100
 
 # Check health
-curl https://jarvis-api.orangemushroom-8f6b80a4.eastus2.azurecontainerapps.io/health
+curl https://jarvis-api.lemonbay-c4ff031f.eastus2.azurecontainerapps.io/health
 ```
 
 ## Limits
