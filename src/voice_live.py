@@ -123,10 +123,6 @@ class VoiceLiveSession:
         session_config = {
             "type": "realtime",
             "instructions": self.instructions,
-            "voice": {
-                "name": self.voice,
-                "type": "azure-standard"
-            }
         }
 
         # Add tools if present
