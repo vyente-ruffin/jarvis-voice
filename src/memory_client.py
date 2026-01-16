@@ -1,28 +1,31 @@
-"""Memory client for interacting with the jarvis-cloud memory API."""
+"""Memory client for Redis agent-memory-server.
+
+Per Redis agent-memory-server docs:
+- POST /v1/long-term-memory/ - Create memories
+- POST /v1/long-term-memory/search - Semantic search
+"""
 
 import os
-from typing import Any, cast
+import uuid
+from typing import Any, Optional
 
 import httpx
 
 from src.logging_config import get_memory_logger, log_api_call
 
-# Default API URL for jarvis-cloud memory service
-DEFAULT_MEMORY_API_URL = "https://mem0-api.greenstone-413be1c4.eastus.azurecontainerapps.io"
-
 # Get the logger for memory operations
 logger = get_memory_logger()
 
 # Default timeout in seconds
-DEFAULT_TIMEOUT_SECONDS = 3.0
+DEFAULT_TIMEOUT_SECONDS = 30.0
 
 # Default memory enabled state
 DEFAULT_ENABLE_MEMORY = True
 
 
 def _get_base_url() -> str:
-    """Get the memory API base URL from environment or use default."""
-    return os.getenv("MEMORY_API_URL", DEFAULT_MEMORY_API_URL)
+    """Get the memory server URL from environment or use default."""
+    return os.getenv("MEMORY_SERVER_URL", "http://localhost:8000")
 
 
 def _get_timeout() -> float:
@@ -49,14 +52,17 @@ def is_memory_enabled() -> bool:
 
 async def search_memory(query: str, user_id: str) -> list[dict[str, Any]]:
     """
-    Search user's long-term memory for relevant context.
+    Search user's long-term memory using semantic search.
+
+    Per Redis agent-memory-server docs:
+    POST /v1/long-term-memory/search with user_id filter
 
     Args:
         query: What to search for in memories
         user_id: User identifier
 
     Returns:
-        List of matching memory objects, or empty list on failure or if disabled
+        List of matching memory objects with text and score
     """
     if not is_memory_enabled():
         logger.debug(
@@ -68,32 +74,41 @@ async def search_memory(query: str, user_id: str) -> list[dict[str, Any]]:
         async with log_api_call(
             operation="search_memory",
             user_id=user_id,
-            api_endpoint="/api/v1/memories/filter",
+            api_endpoint="/v1/long-term-memory/search",
         ) as ctx:
             async with httpx.AsyncClient(
                 base_url=_get_base_url(),
                 timeout=_get_timeout(),
             ) as client:
+                # Per docs: POST /v1/long-term-memory/search
                 response = await client.post(
-                    "/api/v1/memories/filter",
-                    json={"search_query": query, "user_id": user_id},
+                    "/v1/long-term-memory/search",
+                    json={
+                        "text": query,
+                        "user_id": {"eq": user_id},
+                        "limit": 10,
+                    },
                 )
                 response.raise_for_status()
                 data = response.json()
-                # API returns {"results": [...]} or similar structure
-                results: list[dict[str, Any]] = []
-                if isinstance(data, list):
-                    results = data
-                elif isinstance(data, dict) and "results" in data:
-                    results = cast(list[dict[str, Any]], data["results"])
-                elif isinstance(data, dict) and "memories" in data:
-                    results = cast(list[dict[str, Any]], data["memories"])
-                # Log result count (not content for privacy)
+
+                # Per docs: response has "memories" array with text, dist, etc.
+                memories = data.get("memories", [])
+                results = [
+                    {
+                        "id": m.get("id"),
+                        "content": m.get("text"),
+                        "score": 1 - m.get("dist", 0),  # Convert distance to similarity
+                        "topics": m.get("topics", []),
+                        "created_at": m.get("created_at"),
+                    }
+                    for m in memories
+                ]
+
                 ctx["result_count"] = len(results)
                 return results
-    except (httpx.HTTPError, httpx.TimeoutException, Exception):
-        # Graceful degradation: return empty list on any failure
-        # Error already logged by log_api_call context manager
+    except (httpx.HTTPError, httpx.TimeoutException, Exception) as e:
+        logger.error(f"Memory search error: {type(e).__name__}: {e}")
         return []
 
 
@@ -101,7 +116,10 @@ async def add_memory(
     text: str, user_id: str, app: str = "jarvis-voice"
 ) -> dict[str, Any]:
     """
-    Store a new fact about the user.
+    Store a new fact about the user in long-term memory.
+
+    Per Redis agent-memory-server docs:
+    POST /v1/long-term-memory/ with memories array
 
     Args:
         text: The fact to remember about the user
@@ -109,7 +127,7 @@ async def add_memory(
         app: Application name for memory tagging
 
     Returns:
-        Created memory object, or empty dict on failure or if disabled
+        Created memory object, or empty dict on failure
     """
     if not is_memory_enabled():
         logger.debug(
@@ -117,33 +135,41 @@ async def add_memory(
             extra={"operation": "add_memory", "user_id": user_id},
         )
         return {}
+
     try:
         async with log_api_call(
             operation="add_memory",
             user_id=user_id,
-            api_endpoint="/api/v1/memories/",
+            api_endpoint="/v1/long-term-memory/",
         ) as ctx:
             async with httpx.AsyncClient(
                 base_url=_get_base_url(),
                 timeout=_get_timeout(),
             ) as client:
+                # Per docs: POST /v1/long-term-memory/ with memories array
+                # id field is required per Redis agent-memory-server API
+                memory_id = f"jarvis-{uuid.uuid4().hex[:12]}"
                 response = await client.post(
-                    "/api/v1/memories/",
+                    "/v1/long-term-memory/",
                     json={
-                        "text": text,
-                        "user_id": user_id,
-                        "app": app,
-                        "infer": True,
+                        "memories": [
+                            {
+                                "id": memory_id,
+                                "text": text,
+                                "memory_type": "semantic",
+                                "user_id": user_id,
+                                "topics": [app],
+                            }
+                        ]
                     },
                 )
                 response.raise_for_status()
-                result: dict[str, Any] = response.json()
-                # Log that memory was created (not content for privacy)
-                ctx["result_count"] = 1 if result else 0
-                return result
-    except (httpx.HTTPError, httpx.TimeoutException, Exception):
-        # Graceful degradation: return empty dict on any failure
-        # Error already logged by log_api_call context manager
+                result = response.json()
+                logger.info(f"Memory added successfully: {result}")
+                ctx["success"] = True
+                return result if result else {}
+    except (httpx.HTTPError, httpx.TimeoutException, Exception) as e:
+        logger.error(f"Memory add error: {type(e).__name__}: {e}")
         return {}
 
 
@@ -151,12 +177,14 @@ async def get_memories(user_id: str, limit: int = 10) -> list[dict[str, Any]]:
     """
     Get all memories for a user.
 
+    Uses search with empty query to get recent memories.
+
     Args:
         user_id: User identifier
         limit: Maximum number of memories to return
 
     Returns:
-        List of memory objects, or empty list on failure or if disabled
+        List of memory objects
     """
     if not is_memory_enabled():
         logger.debug(
@@ -168,38 +196,47 @@ async def get_memories(user_id: str, limit: int = 10) -> list[dict[str, Any]]:
         async with log_api_call(
             operation="get_memories",
             user_id=user_id,
-            api_endpoint="/api/v1/memories/",
+            api_endpoint="/v1/long-term-memory/search",
         ) as ctx:
             async with httpx.AsyncClient(
                 base_url=_get_base_url(),
                 timeout=_get_timeout(),
             ) as client:
-                response = await client.get(
-                    "/api/v1/memories/",
-                    params={"user_id": user_id, "limit": limit},
+                # Search with empty text to get all memories for user
+                response = await client.post(
+                    "/v1/long-term-memory/search",
+                    json={
+                        "text": "",
+                        "user_id": {"eq": user_id},
+                        "limit": limit,
+                    },
                 )
                 response.raise_for_status()
                 data = response.json()
-                # API may return list or dict with results
-                results: list[dict[str, Any]] = []
-                if isinstance(data, list):
-                    results = data[:limit]
-                elif isinstance(data, dict) and "results" in data:
-                    results = cast(list[dict[str, Any]], data["results"][:limit])
-                elif isinstance(data, dict) and "memories" in data:
-                    results = cast(list[dict[str, Any]], data["memories"][:limit])
-                # Log result count (not content for privacy)
+
+                memories = data.get("memories", [])
+                results = [
+                    {
+                        "id": m.get("id"),
+                        "content": m.get("text"),
+                        "topics": m.get("topics", []),
+                        "created_at": m.get("created_at"),
+                    }
+                    for m in memories
+                ]
+
                 ctx["result_count"] = len(results)
                 return results
-    except (httpx.HTTPError, httpx.TimeoutException, Exception):
-        # Graceful degradation: return empty list on any failure
-        # Error already logged by log_api_call context manager
+    except (httpx.HTTPError, httpx.TimeoutException, Exception) as e:
+        logger.error(f"Get memories error: {type(e).__name__}: {e}")
         return []
 
 
 async def delete_user_memories(user_id: str) -> bool:
     """
     Delete all memories for a user (for test cleanup).
+
+    Note: Redis agent-memory-server uses /v1/long-term-memory/forget endpoint.
 
     Args:
         user_id: User identifier
@@ -211,18 +248,21 @@ async def delete_user_memories(user_id: str) -> bool:
         async with log_api_call(
             operation="delete_user_memories",
             user_id=user_id,
-            api_endpoint="/api/v1/memories/",
+            api_endpoint="/v1/long-term-memory/forget",
         ):
             async with httpx.AsyncClient(
                 base_url=_get_base_url(),
                 timeout=_get_timeout(),
             ) as client:
-                response = await client.delete(
-                    "/api/v1/memories/",
-                    params={"user_id": user_id},
+                response = await client.post(
+                    "/v1/long-term-memory/forget",
+                    json={
+                        "user_id": user_id,
+                        "dry_run": False,
+                    },
                 )
                 response.raise_for_status()
                 return True
-    except (httpx.HTTPError, httpx.TimeoutException, Exception):
-        # Error already logged by log_api_call context manager
+    except (httpx.HTTPError, httpx.TimeoutException, Exception) as e:
+        logger.error(f"Delete memories error: {type(e).__name__}: {e}")
         return False

@@ -219,6 +219,16 @@ body::after {
   color: var(--color-muted);
 }
 
+.core-status.error {
+  color: var(--color-error);
+  animation: errorStatusPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes errorStatusPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
 @keyframes statusPulse {
   0%, 100% { opacity: 0.7; }
   50% { opacity: 1; }
@@ -428,6 +438,17 @@ body::after {
 .system-state.speaking {
   color: var(--color-agent-primary);
   border-color: var(--color-agent-dim);
+}
+
+.system-state.error {
+  color: var(--color-error);
+  border-color: rgba(255, 51, 102, 0.5);
+  animation: errorPulse 2s ease-in-out infinite;
+}
+
+@keyframes errorPulse {
+  0%, 100% { border-color: rgba(255, 51, 102, 0.3); }
+  50% { border-color: var(--color-error); }
 }
 
 @keyframes borderPulse {

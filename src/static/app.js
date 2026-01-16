@@ -16,7 +16,8 @@ let audioContext = null;
 let micStream = null;
 let workletNode = null;
 let muted = false;
-let systemState = 'idle'; // idle, ready, listening, processing, speaking
+let systemState = 'idle'; // idle, ready, listening, processing, speaking, micError
+let hasMicError = false; // Flag to prevent overwriting mic error state
 
 // Audio queue for playback
 const audioQueue = [];
@@ -134,6 +135,11 @@ function setConnectionState(state) {
  * Update system state UI
  */
 function setSystemState(state) {
+  // Don't overwrite mic error state
+  if (hasMicError) {
+    return;
+  }
+
   systemState = state;
   systemStateEl.className = 'system-state ' + state;
 
@@ -322,9 +328,70 @@ function connectWebSocket() {
 }
 
 /**
+ * Check if we're in a secure context (HTTPS or localhost)
+ */
+function isSecureContext() {
+  // window.isSecureContext is the standard way to check
+  if (typeof window.isSecureContext !== 'undefined') {
+    return window.isSecureContext;
+  }
+  // Fallback: check protocol and hostname
+  const protocol = window.location.protocol;
+  const hostname = window.location.hostname;
+  if (protocol === 'https:') return true;
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return true;
+  return false;
+}
+
+/**
+ * Show microphone unavailable error in the UI
+ */
+function showMicrophoneError(message) {
+  // Set flag to prevent other code from overwriting error state
+  hasMicError = true;
+  systemState = 'micError';
+
+  // Update system state to show error
+  systemStateEl.className = 'system-state error';
+  systemStateEl.textContent = 'Mic Unavailable';
+
+  // Update user status
+  userStatus.className = 'core-status error';
+  userStatus.textContent = 'No Mic';
+
+  // Show transcript area with error message
+  transcriptContainer.style.display = 'block';
+  transcriptText.textContent = message;
+  transcriptText.style.color = '#ff6b6b';
+
+  console.error('Microphone error:', message);
+}
+
+/**
  * Start microphone capture
  */
 async function startMicrophone() {
+  // Check for secure context first
+  if (!isSecureContext()) {
+    const hostname = window.location.hostname;
+    showMicrophoneError(
+      `⚠️ Microphone requires HTTPS or localhost. ` +
+      `You're accessing via "${hostname}" over HTTP. ` +
+      `Either use https://${hostname}:8000 with SSL, ` +
+      `or access via http://localhost:8000 from the same machine.`
+    );
+    return;
+  }
+
+  // Check if getUserMedia is available
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showMicrophoneError(
+      '⚠️ Your browser does not support microphone access. ' +
+      'Please use a modern browser like Chrome, Firefox, or Edge.'
+    );
+    return;
+  }
+
   try {
     // Request microphone access
     const stream = await navigator.mediaDevices.getUserMedia({

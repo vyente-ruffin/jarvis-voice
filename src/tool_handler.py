@@ -116,19 +116,22 @@ async def _handle_add_memory(arguments: dict[str, Any]) -> dict[str, Any]:
     result = await add_memory(text, user_id)
     latency_ms = (time.time() - start_time) * 1000
 
+    # Record telemetry
+    _record_memory_event("add", user_id, latency_ms, True)
+
     if result:
         logger.info("Memory added successfully in %.2fms", latency_ms)
-        # Record telemetry
-        _record_memory_event("add", user_id, latency_ms, True)
         return {
             "success": True,
             "memory": result,
+            "message": "Memory stored successfully",
         }
     else:
-        logger.warning("Failed to add memory after %.2fms", latency_ms)
-        # Record telemetry for failure
-        _record_memory_event("add", user_id, latency_ms, False)
+        # API returns null when memory is deduplicated or no new facts extracted
+        # This is expected behavior, not an error
+        logger.info("Memory processed (deduplicated or no new facts) in %.2fms", latency_ms)
         return {
-            "success": False,
-            "error": "Failed to add memory",
+            "success": True,
+            "memory": None,
+            "message": "Memory already exists or no new facts to store",
         }

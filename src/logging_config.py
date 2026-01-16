@@ -71,9 +71,14 @@ class JSONFormatter(logging.Formatter):
 
 def configure_logging() -> None:
     """Configure logging with JSON formatter and environment-based log level."""
+    log_level = get_log_level()
+
+    # Configure root logger to respect LOG_LEVEL
+    logging.basicConfig(level=log_level)
+
     # Get the memory logger
     logger = logging.getLogger("memory")
-    logger.setLevel(get_log_level())
+    logger.setLevel(log_level)
 
     # Remove existing handlers
     logger.handlers = []

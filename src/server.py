@@ -180,8 +180,9 @@ async def websocket_voice(websocket: WebSocket):
 
             if msg_type == "audio":
                 # Forward audio to Voice Live (only if not muted)
+                audio_data = data.get("data", "")
+                logger.info(f"Received audio from browser: {len(audio_data) if audio_data else 0} bytes, muted={muted}")
                 if not muted:
-                    audio_data = data.get("data", "")
                     if audio_data:
                         await session.send_audio(audio_data)
 
