@@ -20,22 +20,46 @@ Browser (any device)           Azure Container Apps            Azure Voice Live 
 
 ## Azure Resources
 
+> **DEPRECATION NOTICE:** This project has been superseded by [Eon](https://github.com/vyente-ruffin/eon). All resources below are tagged with `cleanup=true` and scheduled for deletion.
+
 ### Resource Group: `rg-youni-dev` (eastus2)
 
-| Resource | Type | Name | Purpose |
-|----------|------|------|---------|
-| Container Registry | Microsoft.ContainerRegistry | `jarvisacrafttmtxdb5reg` | Docker images |
-| Log Analytics | Microsoft.OperationalInsights | `jarvis-law-*` | Logging |
-| Container Apps Environment | Microsoft.App/managedEnvironments | `jarvis-cae-afttmtxdb5reg` | Hosts containers |
-| Container App | Microsoft.App/containerApps | `jarvis-api` | Voice assistant |
-| Container App | Microsoft.App/containerApps | `agent-memory-server` | Memory API |
-| Container App | Microsoft.App/containerApps | `redis` | Vector database (internal) |
+| Resource | Type | Name | Purpose | Tag |
+|----------|------|------|---------|-----|
+| Container Registry | Microsoft.ContainerRegistry | `jarvisacrafttmtxdb5reg` | Docker images | `cleanup=true` |
+| Log Analytics | Microsoft.OperationalInsights | `jarvis-law-afttmtxdb5reg` | Logging | `cleanup=true` |
+| Application Insights | Microsoft.Insights/components | `jarvis-appi-afttmtxdb5reg` | Monitoring | `cleanup=true` |
+| Container Apps Environment | Microsoft.App/managedEnvironments | `jarvis-cae-afttmtxdb5reg` | Hosts containers | `cleanup=true` |
+| Container App | Microsoft.App/containerApps | `jarvis-api` | Voice assistant (prod) | `cleanup=true` |
+| Container App | Microsoft.App/containerApps | `agent-memory-server` | Memory API (prod) | `cleanup=true` |
+| Container App | Microsoft.App/containerApps | `redis` | Vector database (prod, internal) | `cleanup=true` |
+| Container App | Microsoft.App/containerApps | `redis-insight` | Redis web UI | `cleanup=true` |
+| Storage Account | Microsoft.Storage | `jarvisredisstore` | Redis persistence | `cleanup=true` |
+| Azure OpenAI | Microsoft.CognitiveServices | `jarvis-voice-openai` | Voice Live API endpoint | `cleanup=true` |
 
-### External Resource (pre-existing)
+### Resource Group: `rg-jarvis-dev` (eastus2)
 
-| Resource | Type | Location | Purpose |
-|----------|------|----------|---------|
-| `jarvis-voice-openai` | Azure OpenAI | eastus2 | Voice Live API endpoint |
+| Resource | Type | Name | Purpose | Tag |
+|----------|------|------|---------|-----|
+| Container App | Microsoft.App/containerApps | `jarvis-api-dev` | Voice assistant (dev) | `cleanup=true` |
+| Container App | Microsoft.App/containerApps | `agent-memory-server-dev` | Memory API (dev) | `cleanup=true` |
+| Container App | Microsoft.App/containerApps | `redis-dev` | Vector database (dev, internal) | `cleanup=true` |
+
+### Cleanup Commands
+
+To delete all tagged resources:
+
+```bash
+# List all resources with cleanup=true tag
+az resource list --tag cleanup=true --query "[].{name:name, resourceGroup:resourceGroup, type:type}" -o table
+
+# Delete resources (run for each resource group)
+az resource list -g rg-youni-dev --tag cleanup=true --query "[].id" -o tsv | xargs -I {} az resource delete --ids {}
+az resource list -g rg-jarvis-dev --tag cleanup=true --query "[].id" -o tsv | xargs -I {} az resource delete --ids {}
+
+# Delete resource group (after all resources are removed)
+az group delete --name rg-jarvis-dev --yes
+```
 
 ## Project Structure
 
